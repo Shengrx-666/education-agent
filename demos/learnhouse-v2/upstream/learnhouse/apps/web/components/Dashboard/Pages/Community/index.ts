@@ -1,0 +1,6 @@
+export { default as CommunityDiscussions } from './CommunityDiscussions'
+export { default as CommunitySettings } from './CommunitySettings'
+export { default as CommunityEditThumbnail } from './CommunityEditThumbnail'
+export { default as CommunityEditCourse } from './CommunityEditCourse'
+export { UserGroupsSection } from './CommunityEditAccess'
+export { ModerationSections } from './CommunityEditModeration'

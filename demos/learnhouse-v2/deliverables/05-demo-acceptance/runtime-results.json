@@ -1,0 +1,23 @@
+{
+  "checks": [
+    {
+      "name": "uniform launcher started API and web",
+      "passed": true
+    },
+    {
+      "name": "initialization rejects an existing database without resetting it",
+      "passed": true
+    },
+    {
+      "name": "random account file permissions 0600",
+      "passed": true
+    },
+    {
+      "name": "uniform launcher stopped owned API and web; state cleared",
+      "passed": true
+    }
+  ],
+  "fresh_machine_installation_tested": false,
+  "platform": "Linux x86_64",
+  "note": "The start/status/stop lifecycle was exercised in the configured Linux workspace; data services were retained."
+}

@@ -1,0 +1,105 @@
+{
+  "timestamp": "2026-11-20T04:06:29.229137+00:00",
+  "database": "learnhouse_v2_demo",
+  "provenance": "demo",
+  "credential_mode": "0o600",
+  "accounts": [
+    {
+      "key": "student_a",
+      "user_id": 2,
+      "role_id": 5,
+      "superadmin_or_backoffice_staff": false,
+      "disabled": false,
+      "all_legacy_crud_disabled": true,
+      "active_granted_course_ids": []
+    },
+    {
+      "key": "student_b",
+      "user_id": 3,
+      "role_id": 5,
+      "superadmin_or_backoffice_staff": false,
+      "disabled": false,
+      "all_legacy_crud_disabled": true,
+      "active_granted_course_ids": []
+    },
+    {
+      "key": "teacher_a",
+      "user_id": 4,
+      "role_id": 5,
+      "superadmin_or_backoffice_staff": false,
+      "disabled": false,
+      "all_legacy_crud_disabled": true,
+      "active_granted_course_ids": [
+        1
+      ]
+    },
+    {
+      "key": "teacher_b",
+      "user_id": 5,
+      "role_id": 5,
+      "superadmin_or_backoffice_staff": false,
+      "disabled": false,
+      "all_legacy_crud_disabled": true,
+      "active_granted_course_ids": [
+        2
+      ]
+    },
+    {
+      "key": "admin",
+      "user_id": 6,
+      "role_id": 5,
+      "superadmin_or_backoffice_staff": false,
+      "disabled": false,
+      "all_legacy_crud_disabled": true,
+      "active_granted_course_ids": []
+    }
+  ],
+  "counts_after_acceptance": {
+    "principal": 7,
+    "resource": 15,
+    "resource_version": 15,
+    "assignment_binding": 12,
+    "submission": 9,
+    "evaluation": 17,
+    "grade_revision": 14,
+    "review_request": 5,
+    "profile_version": 14,
+    "recommendation_version": 14,
+    "audit_event": 134
+  },
+  "original_demo_assignments": [
+    {
+      "binding_id": "6a2a0e50-e21f-59a2-b3e2-0bbbd1521f82",
+      "submission_count": 0
+    },
+    {
+      "binding_id": "b9dda800-1c69-50aa-9b74-ccc51156c038",
+      "submission_count": 0
+    }
+  ],
+  "current_policy_heads": [
+    {
+      "id": "4760f4b1-ba0d-4fd7-b360-226807137899",
+      "course_id": null,
+      "policy_type": "global",
+      "version": 3,
+      "parent_policy_id": null
+    },
+    {
+      "id": "e0bb9b9f-c6e6-49e7-a005-e2a8340cea51",
+      "course_id": 1,
+      "policy_type": "course",
+      "version": 3,
+      "parent_policy_id": "4760f4b1-ba0d-4fd7-b360-226807137899"
+    },
+    {
+      "id": "598d7b86-e404-4adf-a78e-0a2907710930",
+      "course_id": 2,
+      "policy_type": "course",
+      "version": 7,
+      "parent_policy_id": "4760f4b1-ba0d-4fd7-b360-226807137899"
+    }
+  ],
+  "all_course_parents_current": true,
+  "read_only_evidence": true
+}

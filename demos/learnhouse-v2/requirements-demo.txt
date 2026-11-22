@@ -1,0 +1,2 @@
+# Additional request-schema validation dependency; upstream API lock is preserved.
+jsonschema==4.26.0

@@ -1,0 +1,124 @@
+-- Run only in ea_design_validation after validation-upstream-stub.sql + schema.sql.
+-- Every fixture is explicitly DEMO; ROLLBACK removes all fixture rows.
+\set ON_ERROR_STOP on
+BEGIN;
+SET LOCAL TIME ZONE 'UTC';
+CREATE TEMP TABLE validation_marker(label text);
+CREATE FUNCTION pg_temp.assert_rejected(label text, statement text, expected_state text) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE rejected boolean := false; actual text;
+BEGIN
+  BEGIN
+    EXECUTE statement;
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS actual=RETURNED_SQLSTATE;
+    rejected:=true;
+    IF actual<>expected_state THEN RAISE EXCEPTION '%: expected SQLSTATE %, got % (%)',label,expected_state,actual,SQLERRM; END IF;
+  END;
+  IF NOT rejected THEN RAISE EXCEPTION '%: invalid write was accepted',label; END IF;
+  INSERT INTO validation_marker VALUES(label);
+  RAISE NOTICE 'PASS % [SQLSTATE %]',label,expected_state;
+END $$;
+DO $$
+#variable_conflict use_variable
+DECLARE
+ teacher uuid; approver uuid; svc uuid; global_policy uuid; course_policy uuid; other_policy uuid;
+ kp uuid; resource_id uuid; version_id uuid; rubric uuid; validation uuid; review uuid; published uuid;
+ binding uuid; recipient uuid; other_recipient uuid; attempt uuid; submission uuid; evaluation uuid; ai_eval uuid; grade uuid; grade2 uuid;
+ job uuid; profile uuid; rec_version uuid; evidence uuid; correction uuid; late_binding uuid; late_recipient uuid; late_grant uuid; late_attempt uuid;
+ note_grant uuid; other_grant uuid; rev uuid; note_evidence uuid; expired_grant uuid;
+BEGIN
+  INSERT INTO public.organization VALUES(1),(2);
+  INSERT INTO public."user" VALUES(1),(2),(3),(4);
+  INSERT INTO public.course VALUES(101,1,'course_demo_101'),(102,1,'course_demo_102'),(201,2,'course_demo_201');
+  INSERT INTO public.activity VALUES(1001,101,1),(2001,201,2);
+  INSERT INTO public.assignment VALUES(1101,101,1),(1102,101,1),(2101,201,2);
+  INSERT INTO public.usergroup VALUES(11,1),(21,2);
+  INSERT INTO public.userorganization(user_id,org_id) VALUES(1,1),(2,1),(3,1),(4,1);
+  INSERT INTO public.usergroupuser(usergroup_id,user_id,org_id) VALUES(11,2,1),(11,3,1);
+  INSERT INTO public.usergroupresource(usergroup_id,org_id,resource_uuid) VALUES(11,1,'course_demo_101');
+  INSERT INTO public.learner_note VALUES(5001,2,101,1);
+  INSERT INTO ea.principal(org_id,kind,user_id) VALUES(1,'human',1) RETURNING id INTO teacher;
+  INSERT INTO ea.principal(org_id,kind,user_id) VALUES(1,'human',4) RETURNING id INTO approver;
+  INSERT INTO ea.principal(org_id,kind,service_name) VALUES(1,'service','demo_worker') RETURNING id INTO svc;
+  PERFORM pg_temp.assert_rejected('service principal needs a name', $q$INSERT INTO ea.principal(org_id,kind) VALUES(1,'service')$q$,'23514');
+  PERFORM pg_temp.assert_rejected('self approval prohibited', format($q$INSERT INTO ea.action_grant(org_id,principal_id,course_id,action,granted_by,approved_by,reason) VALUES(1,%L,101,'content.publish',%L,%L,'demo')$q$,teacher,teacher,teacher),'23514');
+  INSERT INTO ea.action_grant(org_id,principal_id,course_id,action,granted_by,approved_by,reason) VALUES(1,teacher,101,'content.publish',approver,approver,'demo independent approval');
+  INSERT INTO ea.policy_version(org_id,family_id,version,policy_type,created_by,content_hash) VALUES(1,gen_random_uuid(),1,'global',approver,repeat('a',64)) RETURNING id INTO global_policy;
+  INSERT INTO ea.policy_version(org_id,course_id,family_id,version,parent_policy_id,policy_type,created_by,content_hash) VALUES(1,101,gen_random_uuid(),1,global_policy,'course',teacher,repeat('b',64)) RETURNING id INTO course_policy;
+  INSERT INTO ea.policy_version(org_id,course_id,family_id,version,parent_policy_id,policy_type,created_by,content_hash) VALUES(1,102,gen_random_uuid(),1,global_policy,'course',teacher,repeat('c',64)) RETURNING id INTO other_policy;
+  INSERT INTO ea.knowledge_point(org_id,course_id,code,label) VALUES(1,101,'boolean','Demo Boolean') RETURNING id INTO kp;
+  PERFORM pg_temp.assert_rejected('course cannot cross organization', $q$INSERT INTO ea.knowledge_point(org_id,course_id,code,label) VALUES(2,101,'bad','bad')$q$,'23503');
+  INSERT INTO ea.resource(org_id,course_id,activity_id,kind,title,owner_id) VALUES(1,101,1001,'exercise','Demo exercise',teacher) RETURNING id INTO resource_id;
+  INSERT INTO ea.resource_version(org_id,course_id,resource_id,version,policy_version_id,content_hash,processing_state,generation_mode,provenance,created_by) VALUES(1,101,resource_id,1,course_policy,repeat('d',64),'ready','teacher','demo',teacher) RETURNING id INTO version_id;
+  PERFORM pg_temp.assert_rejected('course policy cannot cross course',format($q$INSERT INTO ea.resource_version(org_id,course_id,resource_id,version,policy_version_id,content_hash,processing_state,generation_mode,provenance,created_by) VALUES(1,101,%L,2,%L,%L,'ready','teacher','demo',%L)$q$,resource_id,other_policy,repeat('e',64),teacher),'P0001');
+  PERFORM pg_temp.assert_rejected('forced review survives mode change',format($q$INSERT INTO ea.resource_version(org_id,course_id,resource_id,version,previous_version_id,policy_version_id,content_hash,processing_state,generation_mode,provenance,forced_review,created_by) VALUES(1,101,%L,2,%L,%L,%L,'ready','rule_template','demo',false,%L)$q$,resource_id,version_id,course_policy,repeat('e',64),teacher),'P0001');
+  PERFORM pg_temp.assert_rejected('version cannot omit forced-review predecessor',format($q$INSERT INTO ea.resource_version(org_id,course_id,resource_id,version,policy_version_id,content_hash,processing_state,generation_mode,provenance,forced_review,created_by) VALUES(1,101,%L,2,%L,%L,'ready','rule_template','demo',false,%L)$q$,resource_id,course_policy,repeat('e',64),teacher),'23514');
+  PERFORM pg_temp.assert_rejected('resource versions immutable',format($q$UPDATE ea.resource_version SET content='{"changed":true}' WHERE id=%L$q$,version_id),'55000');
+  INSERT INTO ea.rubric_version(org_id,course_id,family_id,version,maximum_score,content_hash,created_by) VALUES(1,101,gen_random_uuid(),1,100,repeat('f',64),teacher) RETURNING id INTO rubric;
+  INSERT INTO ea.content_check(org_id,course_id,resource_version_id,policy_version_id,check_kind,verdict,checker_version,actor_id) VALUES(1,101,version_id,course_policy,'deterministic','pass','demo-check-v1',svc) RETURNING id INTO validation;
+  PERFORM pg_temp.assert_rejected('forced review blocks unchecked publish',format($q$INSERT INTO ea.publication_event(org_id,course_id,resource_version_id,usergroup_id,event_no,action,validation_id,policy_version_id,actor_id,reason) VALUES(1,101,%L,11,1,'publish',%L,%L,%L,'demo')$q$,version_id,validation,course_policy,teacher),'P0001');
+  INSERT INTO ea.content_check(org_id,course_id,resource_version_id,policy_version_id,check_kind,verdict,checker_version,actor_id,reason) VALUES(1,101,version_id,course_policy,'human_review','approve','demo-review-v1',teacher,'demo reviewed') RETURNING id INTO review;
+  INSERT INTO ea.publication_event(org_id,course_id,resource_version_id,usergroup_id,event_no,action,validation_id,review_id,policy_version_id,actor_id,reason) VALUES(1,101,version_id,11,1,'publish',validation,review,course_policy,teacher,'demo publish') RETURNING id INTO published;
+  INSERT INTO ea.assignment_binding(org_id,course_id,assignment_id,version,resource_version_id,rubric_version_id,policy_version_id,publication_event_id,usergroup_id,opens_at,due_at,created_by) VALUES(1,101,1101,1,version_id,rubric,course_policy,published,11,now()-interval '1 day',now()+interval '1 day',teacher) RETURNING id INTO binding;
+  INSERT INTO ea.assignment_recipient(org_id,course_id,binding_id,student_id,usergroup_id) VALUES(1,101,binding,2,11) RETURNING id INTO recipient;
+  INSERT INTO ea.assignment_recipient(org_id,course_id,binding_id,student_id,usergroup_id) VALUES(1,101,binding,3,11) RETURNING id INTO other_recipient;
+  INSERT INTO ea.attempt(org_id,course_id,recipient_id,binding_id,student_id,attempt_no,resource_version_id,rubric_version_id,start_key) VALUES(1,101,recipient,binding,2,1,version_id,rubric,'demo-start') RETURNING id INTO attempt;
+  UPDATE ea.attempt SET draft='{"answer":"true"}',draft_revision=1 WHERE id=attempt;
+  INSERT INTO ea.submission(org_id,course_id,attempt_id,student_id,idempotency_key,request_hash,answer_snapshot,provenance) VALUES(1,101,attempt,2,'demo-submit',repeat('1',64),'{"answer":"true"}','demo') RETURNING id INTO submission;
+  IF (SELECT status FROM ea.attempt WHERE id=attempt)<>'submitted' THEN RAISE EXCEPTION 'Submission did not freeze attempt'; END IF;
+  PERFORM pg_temp.assert_rejected('formal submission immutable',format($q$UPDATE ea.submission SET answer_snapshot='{}' WHERE id=%L$q$,submission),'55000');
+  PERFORM pg_temp.assert_rejected('submitted draft immutable',format($q$UPDATE ea.attempt SET draft='{}',draft_revision=2 WHERE id=%L$q$,attempt),'P0001');
+  PERFORM pg_temp.assert_rejected('same attempt cannot submit twice',format($q$INSERT INTO ea.submission(org_id,course_id,attempt_id,student_id,idempotency_key,request_hash,provenance) VALUES(1,101,%L,2,'duplicate',%L,'demo')$q$,attempt,repeat('2',64)),'P0001');
+  INSERT INTO ea.evaluation(org_id,course_id,submission_id,student_id,rubric_version_id,policy_version_id,source,outcome,score,maximum_score,producer_version,actor_id) VALUES(1,101,submission,2,rubric,course_policy,'rule','scored',80,100,'demo-rule-v1',svc) RETURNING id INTO evaluation;
+  PERFORM pg_temp.assert_rejected('evaluation cannot cross student',format($q$INSERT INTO ea.evaluation(org_id,course_id,submission_id,student_id,rubric_version_id,policy_version_id,source,outcome,score,maximum_score,producer_version,actor_id) VALUES(1,101,%L,3,%L,%L,'rule','scored',80,100,'demo',%L)$q$,submission,rubric,course_policy,svc),'23503');
+  PERFORM pg_temp.assert_rejected('evaluation cannot cross course',format($q$INSERT INTO ea.evaluation(org_id,course_id,submission_id,student_id,rubric_version_id,policy_version_id,source,outcome,score,maximum_score,producer_version,actor_id) VALUES(1,102,%L,2,%L,%L,'rule','scored',80,100,'demo',%L)$q$,submission,rubric,global_policy,svc),'23503');
+  PERFORM pg_temp.assert_rejected('score over rubric rejected',format($q$INSERT INTO ea.evaluation(org_id,course_id,submission_id,student_id,rubric_version_id,policy_version_id,source,outcome,score,maximum_score,producer_version,actor_id) VALUES(1,101,%L,2,%L,%L,'rule','scored',101,100,'demo',%L)$q$,submission,rubric,course_policy,svc),'23514');
+  INSERT INTO ea.evaluation(org_id,course_id,submission_id,student_id,rubric_version_id,policy_version_id,source,outcome,score,maximum_score,producer_version,actor_id) VALUES(1,101,submission,2,rubric,course_policy,'ai_suggestion','scored',90,100,'demo-model-v1',svc) RETURNING id INTO ai_eval;
+  PERFORM pg_temp.assert_rejected('AI suggestion cannot become effective',format($q$INSERT INTO ea.grade_revision(org_id,course_id,submission_id,student_id,evaluation_id,revision,reason,actor_id) VALUES(1,101,%L,2,%L,1,'demo',%L)$q$,submission,ai_eval,svc),'P0001');
+  INSERT INTO ea.grade_revision(org_id,course_id,submission_id,student_id,evaluation_id,revision,reason,actor_id) VALUES(1,101,submission,2,evaluation,1,'demo auto rule',svc) RETURNING id INTO grade;
+  PERFORM pg_temp.assert_rejected('effective grade immutable',format($q$UPDATE ea.grade_revision SET reason='overwritten' WHERE id=%L$q$,grade),'55000');
+  INSERT INTO ea.review_request(org_id,course_id,submission_id,student_id,grade_revision_id,request_text) VALUES(1,101,submission,2,grade,'demo review request') RETURNING id INTO rev;
+  PERFORM pg_temp.assert_rejected('only one active review per result',format($q$INSERT INTO ea.review_request(org_id,course_id,submission_id,student_id,grade_revision_id,request_text) VALUES(1,101,%L,2,%L,'duplicate')$q$,submission,grade),'23505');
+  INSERT INTO ea.evaluation(org_id,course_id,submission_id,student_id,rubric_version_id,policy_version_id,source,outcome,score,maximum_score,producer_version,actor_id) VALUES(1,101,submission,2,rubric,course_policy,'teacher','scored',85,100,'demo-teacher-v1',teacher) RETURNING id INTO evaluation;
+  INSERT INTO ea.grade_revision(org_id,course_id,submission_id,student_id,evaluation_id,revision,supersedes_id,reason,actor_id) VALUES(1,101,submission,2,evaluation,2,grade,'demo correction',teacher) RETURNING id INTO grade2;
+  UPDATE ea.review_request SET status='revised',resolved_revision_id=grade2,resolution='demo revised',resolved_by=teacher,resolved_at=now() WHERE id=rev;
+  PERFORM pg_temp.assert_rejected('closed review cannot change',format($q$UPDATE ea.review_request SET resolution='overwrite' WHERE id=%L$q$,rev),'P0001');
+  INSERT INTO ea.evaluation(org_id,course_id,submission_id,student_id,rubric_version_id,policy_version_id,source,outcome,score,maximum_score,producer_version,actor_id) VALUES(1,101,submission,2,rubric,course_policy,'teacher','scored',86,100,'demo-teacher-v1',teacher) RETURNING id INTO evaluation;
+  PERFORM pg_temp.assert_rejected('grade history cannot fork',format($q$INSERT INTO ea.grade_revision(org_id,course_id,submission_id,student_id,evaluation_id,revision,supersedes_id,reason,actor_id) VALUES(1,101,%L,2,%L,2,%L,'fork',%L)$q$,submission,evaluation,grade,teacher),'23505');
+  INSERT INTO ea.evidence_event(org_id,course_id,student_id,knowledge_point_id,grade_revision_id,source_type,provenance,judgment_source,source_event_key,observed_at) VALUES(1,101,2,kp,grade2,'effective_grade','demo','teacher','demo-grade2',now()) RETURNING id INTO evidence;
+  PERFORM pg_temp.assert_rejected('demo cannot become real evidence',format($q$INSERT INTO ea.evidence_event(org_id,course_id,student_id,knowledge_point_id,grade_revision_id,source_type,provenance,judgment_source,source_event_key,observed_at) VALUES(1,101,2,%L,%L,'effective_grade','real','teacher','false-real',now())$q$,kp,grade2),'P0001');
+  INSERT INTO ea.task_run(org_id,course_id,requested_by,operation,idempotency_key,input_hash) VALUES(1,101,svc,'profile_update','demo-profile',repeat('3',64)) RETURNING id INTO job;
+  INSERT INTO ea.task_run(org_id,course_id,requested_by,operation,idempotency_key,input_hash) VALUES(1,101,teacher,'profile_update','demo-profile',repeat('3',64));
+  INSERT INTO validation_marker VALUES('task raw key isolated by requesting actor');
+  PERFORM pg_temp.assert_rejected('task idempotency unique',format($q$INSERT INTO ea.task_run(org_id,course_id,requested_by,operation,idempotency_key,input_hash) VALUES(1,101,%L,'profile_update','demo-profile',%L)$q$,svc,repeat('3',64)),'23505');
+  INSERT INTO ea.profile_version(org_id,course_id,student_id,version,trigger_type,trigger_event_key,trigger_grade_id,task_id,method_kind,capability_status,method_version,provenance,evidence_manifest,states,input_hash) VALUES(1,101,2,1,'grade_corrected','demo-grade2',grade2,job,'rule_statistics','not_connected','demo-rule-state-v1','demo',jsonb_build_array(jsonb_build_object('evidence_id',evidence)),jsonb_build_object(kp::text,jsonb_build_object('state','unknown')),repeat('4',64)) RETURNING id INTO profile;
+  PERFORM pg_temp.assert_rejected('statistics cannot claim research fields',format($q$INSERT INTO ea.profile_version(org_id,course_id,student_id,version,previous_version_id,trigger_type,trigger_event_key,trigger_grade_id,task_id,method_kind,capability_status,method_version,provenance,research_fields,input_hash) VALUES(1,101,2,2,%L,'grade_corrected','invalid-statistics',%L,%L,'rule_statistics','connected','demo-invalid','demo','{"affect":{"status":"estimated","source":"none","method_version":"v1"}}',%L)$q$,profile,grade2,job,repeat('5',64)),'23514');
+  PERFORM pg_temp.assert_rejected('demo profile cannot be labelled real',format($q$INSERT INTO ea.profile_version(org_id,course_id,student_id,version,previous_version_id,trigger_type,trigger_event_key,trigger_grade_id,task_id,method_kind,capability_status,method_version,provenance,evidence_manifest,input_hash) VALUES(1,101,2,2,%L,'grade_corrected','invalid-research',%L,%L,'research_prototype','unvalidated','demo-invalid','real',%L,%L)$q$,profile,grade2,job,jsonb_build_array(jsonb_build_object('evidence_id',evidence))::text,repeat('6',64)),'P0001');
+  INSERT INTO ea.note_permission(org_id,course_id,note_id,student_id,purpose,consent_revision) VALUES(1,101,5001,2,'profile_use',1) RETURNING id INTO note_grant;
+  PERFORM pg_temp.assert_rejected('NULL personal consent uniqueness on PG14', $q$INSERT INTO ea.note_permission(org_id,course_id,note_id,student_id,purpose,consent_revision) VALUES(1,101,5001,2,'profile_use',2)$q$,'23505');
+  INSERT INTO ea.evidence_event(org_id,course_id,student_id,knowledge_point_id,note_permission_id,source_type,provenance,judgment_source,source_event_key,observed_at) VALUES(1,101,2,kp,note_grant,'consented_note','demo','self_report','demo-note-before-revoke',now()) RETURNING id INTO note_evidence;
+  UPDATE ea.note_permission SET revoked_at=now() WHERE id=note_grant;
+  PERFORM pg_temp.assert_rejected('old note evidence cannot bypass revoked consent',format($q$INSERT INTO ea.profile_version(org_id,course_id,student_id,version,previous_version_id,trigger_type,trigger_event_key,trigger_grade_id,task_id,method_kind,capability_status,method_version,provenance,evidence_manifest,input_hash) VALUES(1,101,2,2,%L,'grade_corrected','invalid-research',%L,%L,'research_prototype','unvalidated','revoked-note-profile','demo',%L,%L)$q$,profile,grade2,job,jsonb_build_array(jsonb_build_object('evidence_id',note_evidence))::text,repeat('6',64)),'P0001');
+  PERFORM pg_temp.assert_rejected('revoked note consent cannot generate evidence',format($q$INSERT INTO ea.evidence_event(org_id,course_id,student_id,knowledge_point_id,note_permission_id,source_type,provenance,judgment_source,source_event_key,observed_at) VALUES(1,101,2,%L,%L,'consented_note','demo','self_report','revoked-note',now())$q$,kp,note_grant),'P0001');
+  INSERT INTO ea.profile_version(org_id,course_id,student_id,version,previous_version_id,trigger_type,trigger_event_key,trigger_grade_id,task_id,method_kind,capability_status,method_version,provenance,evidence_manifest,input_hash) VALUES(1,101,2,2,profile,'consent_revoked',note_grant::text,NULL,job,'rule_statistics','not_connected','demo-rule-state-v1','demo',jsonb_build_array(jsonb_build_object('evidence_id',evidence)),repeat('9',64));
+  INSERT INTO validation_marker VALUES('consent revocation rebuild succeeds without new grade or method version');
+  INSERT INTO ea.assignment_binding(org_id,course_id,assignment_id,version,resource_version_id,rubric_version_id,policy_version_id,publication_event_id,usergroup_id,opens_at,due_at,created_by) VALUES(1,101,1102,1,version_id,rubric,course_policy,published,11,now()-interval '3 days',now()-interval '1 day',teacher) RETURNING id INTO late_binding;
+  INSERT INTO ea.assignment_recipient(org_id,course_id,binding_id,student_id,usergroup_id) VALUES(1,101,late_binding,2,11) RETURNING id INTO late_recipient;
+  PERFORM pg_temp.assert_rejected('late start without grant rejected',format($q$INSERT INTO ea.attempt(org_id,course_id,recipient_id,binding_id,student_id,attempt_no,resource_version_id,rubric_version_id,start_key) VALUES(1,101,%L,%L,2,1,%L,%L,'late-without-grant')$q$,late_recipient,late_binding,version_id,rubric),'P0001');
+  INSERT INTO ea.resubmission_grant(org_id,course_id,recipient_id,binding_id,student_id,grant_kind,starts_at,expires_at,allowed_attempts,granted_by,reason) VALUES(1,101,late_recipient,late_binding,2,'late',now()-interval '2 hours',now()-interval '1 hour',1,teacher,'demo expired authorization') RETURNING id INTO expired_grant;
+  PERFORM pg_temp.assert_rejected('expired supplementary grant rejected',format($q$INSERT INTO ea.attempt(org_id,course_id,recipient_id,binding_id,student_id,attempt_no,resource_version_id,rubric_version_id,resubmission_grant_id,grant_slot,start_key) VALUES(1,101,%L,%L,2,1,%L,%L,%L,1,'expired-grant')$q$,late_recipient,late_binding,version_id,rubric,expired_grant),'P0001');
+  INSERT INTO ea.resubmission_grant(org_id,course_id,recipient_id,binding_id,student_id,grant_kind,starts_at,expires_at,allowed_attempts,granted_by,reason) VALUES(1,101,late_recipient,late_binding,2,'late',now()-interval '1 hour',now()+interval '1 hour',1,teacher,'demo late authorization') RETURNING id INTO late_grant;
+  INSERT INTO ea.attempt(org_id,course_id,recipient_id,binding_id,student_id,attempt_no,resource_version_id,rubric_version_id,resubmission_grant_id,grant_slot,start_key) VALUES(1,101,late_recipient,late_binding,2,1,version_id,rubric,late_grant,1,'late-with-grant') RETURNING id INTO late_attempt;
+  PERFORM pg_temp.assert_rejected('supplementary grant slot cap enforced',format($q$INSERT INTO ea.attempt(org_id,course_id,recipient_id,binding_id,student_id,attempt_no,resource_version_id,rubric_version_id,resubmission_grant_id,grant_slot,start_key) VALUES(1,101,%L,%L,2,2,%L,%L,%L,2,'over-cap')$q$,late_recipient,late_binding,version_id,rubric,late_grant),'P0001');
+  UPDATE ea.resubmission_grant SET revoked_at=now() WHERE id=late_grant;
+  PERFORM pg_temp.assert_rejected('grant rechecked at formal submission',format($q$INSERT INTO ea.submission(org_id,course_id,attempt_id,student_id,idempotency_key,request_hash,provenance) VALUES(1,101,%L,2,'late-revoked',%L,'demo')$q$,late_attempt,repeat('7',64)),'P0001');
+  IF (SELECT status FROM ea.attempt WHERE id=late_attempt)<>'draft' THEN RAISE EXCEPTION 'Rejected handin destroyed draft'; END IF;
+  DELETE FROM public.usergroupuser WHERE user_id=2;
+  PERFORM pg_temp.assert_rejected('upstream membership revoked stops submission',format($q$INSERT INTO ea.submission(org_id,course_id,attempt_id,student_id,idempotency_key,request_hash,provenance) VALUES(1,101,%L,2,'membership-revoked',%L,'demo')$q$,late_attempt,repeat('8',64)),'42501');
+  INSERT INTO ea.outbox_event(org_id,course_id,event_type,aggregate_type,aggregate_id,deduplication_key,payload,published_at) VALUES(1,101,'command.receipt','submission',submission,'actor:submit:key','{"http_status":201}',now());
+  PERFORM pg_temp.assert_rejected('command receipt deduplication unique',format($q$INSERT INTO ea.outbox_event(org_id,course_id,event_type,aggregate_type,aggregate_id,deduplication_key) VALUES(1,101,'command.receipt','submission',%L,'actor:submit:key')$q$,submission),'23505');
+  RAISE NOTICE 'PASS positive path: version -> checked publication -> binding -> attempt -> immutable submission -> rule result -> teacher correction -> demo state';
+  INSERT INTO validation_marker VALUES('positive immutable teaching chain'),('authorized late attempt starts'),('rejected submission preserves draft');
+END $$;
+SELECT count(*) AS passed_assertions FROM validation_marker;
+ROLLBACK;

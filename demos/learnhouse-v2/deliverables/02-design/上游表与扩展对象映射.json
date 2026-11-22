@@ -1,0 +1,2369 @@
+{
+  "schema_version": "1.0",
+  "audit_date": "2026-11-20",
+  "language": "zh-CN",
+  "upstream": {
+    "repository": "https://github.com/learnhouse/learnhouse",
+    "path": "/home/hongjian/projects/education-agent/development-v2-2026-11-20/upstream/learnhouse",
+    "commit": "c76cf6f64ab71ed042fe83e985d9c4ab3fa148f5",
+    "verification": "git rev-parse HEAD匹配；开始时git status --short为空；只读静态审计",
+    "database": "PostgreSQL",
+    "orm": "SQLModel / SQLAlchemy AsyncSession",
+    "migrations": "Alembic",
+    "runtime_verified": false
+  },
+  "requirements": {
+    "path": "/home/hongjian/projects/education-agent/product-design-v2/assets/spec-data.json",
+    "version": "V2.0",
+    "date": "2026-11-19",
+    "sha256": "8908bf92b310f29eb4659eed2ae1db023f60f5d0f028a19b11ba2911fbc577a1"
+  },
+  "evidence_rules": [
+    "actual_fields来自AST读取模型及本文件基类，不导入上游模块、不连接数据库",
+    "field_source_lines指向同一source.path内的字段声明，包括继承字段",
+    "table_name_basis明确显式__tablename__与SQLModel默认规则；migration_mentions只表示迁移引用，不表示已执行",
+    "proposed_extensions全部为拟新增对象，字段均为设计建议，不能当上游已存在事实",
+    "不把AI/EE文档、路由占位或数据库模型的存在等同运行成功"
+  ],
+  "edition_and_license": {
+    "core_license": "AGPL-3.0",
+    "core_evidence": [
+      "LICENSE",
+      "README.md:139"
+    ],
+    "mit_subtrees": [
+      "packages/sdk/LICENSE",
+      "packages/react/LICENSE",
+      "packages/vue/LICENSE",
+      "docs/LICENSE"
+    ],
+    "ee_directories_present": {
+      "apps/api/ee": false,
+      "apps/web/ee": false,
+      "apps/collab/ee": false
+    },
+    "ee_separate_license_evidence": [
+      "docs/content/enterprise/index.mdx",
+      ".gitignore:61"
+    ],
+    "oss_limit_evidence": "apps/api/src/core/deployment_mode.py:EE_ONLY_FEATURES",
+    "audit_hook": "apps/api/src/core/ee_hooks.py:audit_event，无EE时no-op",
+    "v2_business_audit": "必须社区自建；不能依赖EE audit_logs"
+  },
+  "upstream_models": [
+    {
+      "model": "User",
+      "table": "user",
+      "source": {
+        "path": "apps/api/src/db/users.py",
+        "line": 275
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/i9d0e1f2a3b4_add_signup_method.py",
+          "line": 22
+        },
+        {
+          "path": "apps/api/migrations/versions/e5f6a7b8c9d0_add_activity_versioning.py",
+          "line": 28
+        }
+      ],
+      "actual_fields": [
+        "username",
+        "first_name",
+        "last_name",
+        "email",
+        "avatar_image",
+        "bio",
+        "details",
+        "profile",
+        "extra_metadata",
+        "id",
+        "password",
+        "user_uuid",
+        "email_verified",
+        "email_verified_at",
+        "failed_login_attempts",
+        "locked_until",
+        "last_login_at",
+        "last_login_ip",
+        "signup_method",
+        "is_backoffice_staff",
+        "password_changed_at",
+        "ui_preferences",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "username": 16,
+        "first_name": 17,
+        "last_name": 18,
+        "email": 19,
+        "avatar_image": 20,
+        "bio": 21,
+        "details": 22,
+        "profile": 23,
+        "extra_metadata": 24,
+        "id": 280,
+        "password": 281,
+        "user_uuid": 282,
+        "email_verified": 283,
+        "email_verified_at": 284,
+        "failed_login_attempts": 285,
+        "locked_until": 286,
+        "last_login_at": 287,
+        "last_login_ip": 288,
+        "signup_method": 289,
+        "is_backoffice_staff": 293,
+        "password_changed_at": 297,
+        "ui_preferences": 300,
+        "creation_date": 301,
+        "update_date": 302
+      },
+      "database_column_aliases": {
+        "is_backoffice_staff": "is_superadmin"
+      },
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_user_email\", \"email\"),\n        {\"extend_existing\": True},\n    )"
+      ],
+      "v2_requirements": [
+        "C01",
+        "C02",
+        "A02",
+        "P01"
+      ],
+      "reuse": "身份主键与基础资料可复用",
+      "gap": "is_backoffice_staff在数据库实际列名为is_superadmin；V2管理员不得置真；账号停用和会话撤销仍需运行验收"
+    },
+    {
+      "model": "Organization",
+      "table": "organization",
+      "source": {
+        "path": "apps/api/src/db/organizations.py",
+        "line": 30
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/87a621284ae4_organizations_new_model.py",
+          "line": 24
+        },
+        {
+          "path": "apps/api/migrations/versions/v1w2x3y4z5a6_add_org_id_to_auditlog.py",
+          "line": 40
+        }
+      ],
+      "actual_fields": [
+        "name",
+        "description",
+        "about",
+        "socials",
+        "links",
+        "scripts",
+        "logo_image",
+        "thumbnail_image",
+        "previews",
+        "explore",
+        "label",
+        "slug",
+        "email",
+        "id",
+        "org_uuid",
+        "is_demo",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "name": 15,
+        "description": 16,
+        "about": 17,
+        "socials": 18,
+        "links": 19,
+        "scripts": 20,
+        "logo_image": 21,
+        "thumbnail_image": 22,
+        "previews": 23,
+        "explore": 35,
+        "label": 25,
+        "slug": 34,
+        "email": 27,
+        "id": 32,
+        "org_uuid": 33,
+        "is_demo": 39,
+        "creation_date": 40,
+        "update_date": 41
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = {\"extend_existing\": True}"
+      ],
+      "v2_requirements": [
+        "A01",
+        "A03"
+      ],
+      "reuse": "组织边界可复用",
+      "gap": "多组织服务可用性受EE/SaaS模式限制；Demo单组织即可"
+    },
+    {
+      "model": "Role",
+      "table": "role",
+      "source": {
+        "path": "apps/api/src/db/roles.py",
+        "line": 109
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/8d1f2c3b4a5e_add_messaging.py",
+          "line": 90
+        },
+        {
+          "path": "apps/api/migrations/versions/e2d9f4a7b1c6_add_demo_instances.py",
+          "line": 63
+        }
+      ],
+      "actual_fields": [
+        "name",
+        "description",
+        "rights",
+        "id",
+        "org_id",
+        "role_type",
+        "role_uuid",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "name": 104,
+        "description": 105,
+        "rights": 106,
+        "id": 113,
+        "org_id": 114,
+        "role_type": 118,
+        "role_uuid": 119,
+        "creation_date": 120,
+        "update_date": 121
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_role_org_type\", \"org_id\", \"role_type\"),\n    )"
+      ],
+      "v2_requirements": [
+        "C02",
+        "A02",
+        "P02"
+      ],
+      "reuse": "可复用角色记录和rights存储",
+      "gap": "CRUD权限桶不能表示审核、发布、批阅分离；固定Admin/Maintainer有旁路，不能只改rights"
+    },
+    {
+      "model": "UserOrganization",
+      "table": "userorganization",
+      "source": {
+        "path": "apps/api/src/db/user_organizations.py",
+        "line": 6
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/e4f7a2c9b1d3_add_hot_path_indexes.py",
+          "line": 43
+        },
+        {
+          "path": "apps/api/migrations/versions/d8i2c3o4p5y6_add_invitation_copy_token.py",
+          "line": 89
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "user_id",
+        "org_id",
+        "role_id",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "id": 13,
+        "user_id": 14,
+        "org_id": 17,
+        "role_id": 20,
+        "creation_date": 21,
+        "update_date": 22
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_userorg_user_org\", \"user_id\", \"org_id\"),\n        Index(\"ix_userorg_org_role\", \"org_id\", \"role_id\"),\n        # One membership per person and org: concurrent joins can't both land.\n        Index(\"uq_userorganization_user_org\", \"user_id\", \"org_id\", unique=True),\n    )"
+      ],
+      "v2_requirements": [
+        "C02",
+        "A02",
+        "A03",
+        "P02"
+      ],
+      "reuse": "组织成员与角色连接可复用",
+      "gap": "每人每组织唯一且只有一个role_id，不是V2多身份多授权清单"
+    },
+    {
+      "model": "UserGroup",
+      "table": "usergroup",
+      "source": {
+        "path": "apps/api/src/db/usergroups.py",
+        "line": 15
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/u6g4r8p2m5k1_usergroups_v2.py",
+          "line": 35
+        }
+      ],
+      "actual_fields": [
+        "name",
+        "description",
+        "id",
+        "org_id",
+        "usergroup_uuid",
+        "creation_date",
+        "update_date",
+        "kind",
+        "rules",
+        "parent_id",
+        "color",
+        "settings",
+        "last_synced_at"
+      ],
+      "field_source_lines": {
+        "name": 12,
+        "description": 13,
+        "id": 16,
+        "org_id": 17,
+        "usergroup_uuid": 20,
+        "creation_date": 21,
+        "update_date": 22,
+        "kind": 24,
+        "rules": 28,
+        "parent_id": 31,
+        "color": 35,
+        "settings": 37,
+        "last_synced_at": 38
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [],
+      "v2_requirements": [
+        "T04",
+        "A03",
+        "P04"
+      ],
+      "reuse": "manual组可映射Demo班级",
+      "gap": "通用组没有课程教师批阅范围语义；不得开放教师任意入班/退班"
+    },
+    {
+      "model": "UserGroupUser",
+      "table": "usergroupuser",
+      "source": {
+        "path": "apps/api/src/db/usergroup_user.py",
+        "line": 14
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/u6g4r8p2m5k1_usergroups_v2.py",
+          "line": 51
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "usergroup_id",
+        "user_id",
+        "org_id",
+        "creation_date",
+        "update_date",
+        "sources",
+        "expires_at",
+        "added_by_id"
+      ],
+      "field_source_lines": {
+        "id": 17,
+        "usergroup_id": 18,
+        "user_id": 21,
+        "org_id": 24,
+        "creation_date": 27,
+        "update_date": 28,
+        "sources": 29,
+        "expires_at": 32,
+        "added_by_id": 36
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (Index(\"ix_usergroupuser_group_user\", \"usergroup_id\", \"user_id\"),)"
+      ],
+      "v2_requirements": [
+        "T04",
+        "A03",
+        "P04"
+      ],
+      "reuse": "班级成员及有效期可复用",
+      "gap": "需要冻结或按策略保留历史提交对应班级归属；不能因退班删除正式证据"
+    },
+    {
+      "model": "UserGroupResource",
+      "table": "usergroupresource",
+      "source": {
+        "path": "apps/api/src/db/usergroup_resources.py",
+        "line": 7
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/u6g4r8p2m5k1_usergroups_v2.py",
+          "line": 62
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "usergroup_id",
+        "resource_uuid",
+        "org_id",
+        "creation_date",
+        "update_date",
+        "starts_at",
+        "expires_at"
+      ],
+      "field_source_lines": {
+        "id": 8,
+        "usergroup_id": 9,
+        "resource_uuid": 12,
+        "org_id": 13,
+        "creation_date": 16,
+        "update_date": 17,
+        "starts_at": 21,
+        "expires_at": 24
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [],
+      "v2_requirements": [
+        "S02",
+        "S03",
+        "A03",
+        "P05"
+      ],
+      "reuse": "group到course等resource_uuid访问连接可复用",
+      "gap": "该连接只表示资源访问窗口，不是教师某班某任务的批阅许可"
+    },
+    {
+      "model": "UserGroupManager",
+      "table": "usergroup_manager",
+      "source": {
+        "path": "apps/api/src/db/usergroup_extras.py",
+        "line": 44
+      },
+      "table_name_basis": "explicit __tablename__",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/u6g4r8p2m5k1_usergroups_v2.py",
+          "line": 77
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "usergroup_id",
+        "user_id",
+        "org_id",
+        "can_manage_members",
+        "can_view_progress",
+        "can_post",
+        "digest",
+        "created_by_id",
+        "created_at"
+      ],
+      "field_source_lines": {
+        "id": 48,
+        "usergroup_id": 49,
+        "user_id": 50,
+        "org_id": 51,
+        "can_manage_members": 52,
+        "can_view_progress": 55,
+        "can_post": 58,
+        "digest": 62,
+        "created_by_id": 65,
+        "created_at": 66
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (UniqueConstraint(\"usergroup_id\", \"user_id\", name=\"uq_usergroup_manager\"),)"
+      ],
+      "v2_requirements": [
+        "T04",
+        "T11",
+        "A03"
+      ],
+      "reuse": "分组管理者及progress查看能力可参考",
+      "gap": "仅can_manage_members/can_view_progress/can_post，缺审核/发布/批阅动作；Demo不要自动授予can_manage_members"
+    },
+    {
+      "model": "ResourceAuthor",
+      "table": "resourceauthor",
+      "source": {
+        "path": "apps/api/src/db/resource_authors.py",
+        "line": 19
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/4a88b680263c_multi_contributors.py",
+          "line": 26
+        },
+        {
+          "path": "apps/api/migrations/versions/cb2029aadc2d_cloud_changes.py",
+          "line": 56
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "resource_uuid",
+        "user_id",
+        "authorship",
+        "authorship_status",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "id": 23,
+        "resource_uuid": 24,
+        "user_id": 25,
+        "authorship": 28,
+        "authorship_status": 29,
+        "creation_date": 30,
+        "update_date": 31
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_resourceauthor_resource_uuid_user_id\", \"resource_uuid\", \"user_id\"),\n    )"
+      ],
+      "v2_requirements": [
+        "T02",
+        "T03",
+        "A03",
+        "P03"
+      ],
+      "reuse": "课程创建者/作者关系可复用",
+      "gap": "作者身份不是review/publish/grade独立授权；不可把管理员自动设为作者"
+    },
+    {
+      "model": "Course",
+      "table": "course",
+      "source": {
+        "path": "apps/api/src/db/courses/courses.py",
+        "line": 98
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/dae02f36bef2_add_drip_content.py",
+          "line": 32
+        },
+        {
+          "path": "apps/api/migrations/versions/4a88b680263c_multi_contributors.py",
+          "line": 25
+        }
+      ],
+      "actual_fields": [
+        "name",
+        "description",
+        "about",
+        "learnings",
+        "tags",
+        "thumbnail_type",
+        "thumbnail_image",
+        "thumbnail_video",
+        "public",
+        "published",
+        "open_to_contributors",
+        "id",
+        "org_id",
+        "course_uuid",
+        "slug",
+        "default_locale",
+        "creation_date",
+        "update_date",
+        "seo",
+        "extra_metadata",
+        "drip_settings"
+      ],
+      "field_source_lines": {
+        "name": 85,
+        "description": 86,
+        "about": 87,
+        "learnings": 88,
+        "tags": 89,
+        "thumbnail_type": 104,
+        "thumbnail_image": 91,
+        "thumbnail_video": 92,
+        "public": 93,
+        "published": 94,
+        "open_to_contributors": 95,
+        "id": 103,
+        "org_id": 108,
+        "course_uuid": 111,
+        "slug": 113,
+        "default_locale": 115,
+        "creation_date": 116,
+        "update_date": 117,
+        "seo": 118,
+        "extra_metadata": 119,
+        "drip_settings": 122
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_course_org_public_published_created\", \"org_id\", \"public\", \"published\", \"creation_date\"),\n        {\"extend_existing\": True},\n    )"
+      ],
+      "v2_requirements": [
+        "S02",
+        "S03",
+        "T02",
+        "T03",
+        "P03",
+        "P05"
+      ],
+      "reuse": "课程主键、名称、结构入口可复用",
+      "gap": "public/published为粗可见性，缺发布审批与不可变内容引用；受控Demo不使用public=true"
+    },
+    {
+      "model": "Chapter",
+      "table": "chapter",
+      "source": {
+        "path": "apps/api/src/db/courses/chapters.py",
+        "line": 29
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/dae02f36bef2_add_drip_content.py",
+          "line": 32
+        },
+        {
+          "path": "apps/api/migrations/versions/83b6d9d6f57a_org_ids_cascades.py",
+          "line": 24
+        }
+      ],
+      "actual_fields": [
+        "name",
+        "description",
+        "thumbnail_image",
+        "lock_type",
+        "org_id",
+        "course_id",
+        "id",
+        "chapter_uuid",
+        "creation_date",
+        "update_date",
+        "extra_metadata",
+        "drip_rule"
+      ],
+      "field_source_lines": {
+        "name": 17,
+        "description": 18,
+        "thumbnail_image": 19,
+        "lock_type": 20,
+        "org_id": 21,
+        "course_id": 24,
+        "id": 30,
+        "chapter_uuid": 31,
+        "creation_date": 32,
+        "update_date": 33,
+        "extra_metadata": 34,
+        "drip_rule": 37
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [],
+      "v2_requirements": [
+        "S03",
+        "T03"
+      ],
+      "reuse": "章节内容骨架可复用",
+      "gap": "教学目标/知识点和策略绑定仍需扩展"
+    },
+    {
+      "model": "CourseChapter",
+      "table": "coursechapter",
+      "source": {
+        "path": "apps/api/src/db/courses/course_chapters.py",
+        "line": 6
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/83b6d9d6f57a_org_ids_cascades.py",
+          "line": 29
+        },
+        {
+          "path": "apps/api/migrations/versions/cb2029aadc2d_cloud_changes.py",
+          "line": 48
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "order",
+        "course_id",
+        "chapter_id",
+        "org_id",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "id": 7,
+        "order": 8,
+        "course_id": 9,
+        "chapter_id": 12,
+        "org_id": 15,
+        "creation_date": 18,
+        "update_date": 19
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [],
+      "v2_requirements": [
+        "S03",
+        "T03"
+      ],
+      "reuse": "章节顺序可复用",
+      "gap": "不能承担版本化课程发布范围"
+    },
+    {
+      "model": "Activity",
+      "table": "activity",
+      "source": {
+        "path": "apps/api/src/db/courses/activities.py",
+        "line": 61
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/r5s6t7u8v9w0_add_resource_activity_subtype.py",
+          "line": 30
+        },
+        {
+          "path": "apps/api/migrations/versions/f8a3c2d1e5b7_add_scorm_activity_types.py",
+          "line": 28
+        }
+      ],
+      "actual_fields": [
+        "name",
+        "activity_type",
+        "activity_sub_type",
+        "content",
+        "details",
+        "published",
+        "lock_type",
+        "id",
+        "org_id",
+        "course_id",
+        "activity_uuid",
+        "creation_date",
+        "update_date",
+        "extra_metadata",
+        "current_version",
+        "last_modified_by_id"
+      ],
+      "field_source_lines": {
+        "name": 52,
+        "activity_type": 53,
+        "activity_sub_type": 54,
+        "content": 55,
+        "details": 56,
+        "published": 57,
+        "lock_type": 58,
+        "id": 62,
+        "org_id": 63,
+        "course_id": 66,
+        "activity_uuid": 70,
+        "creation_date": 71,
+        "update_date": 72,
+        "extra_metadata": 73,
+        "current_version": 75,
+        "last_modified_by_id": 76
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [],
+      "v2_requirements": [
+        "S04",
+        "T05",
+        "T07",
+        "T08"
+      ],
+      "reuse": "活动正文、类型、published及版本计数可复用",
+      "gap": "content可原地更新；published不表示校验通过/审核通过；缺不可变资源发布记录"
+    },
+    {
+      "model": "ChapterActivity",
+      "table": "chapteractivity",
+      "source": {
+        "path": "apps/api/src/db/courses/chapter_activities.py",
+        "line": 5
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/83b6d9d6f57a_org_ids_cascades.py",
+          "line": 25
+        },
+        {
+          "path": "apps/api/migrations/versions/e4f7a2c9b1d3_add_hot_path_indexes.py",
+          "line": 41
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "order",
+        "chapter_id",
+        "activity_id",
+        "course_id",
+        "org_id",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "id": 9,
+        "order": 10,
+        "chapter_id": 11,
+        "activity_id": 12,
+        "course_id": 13,
+        "org_id": 14,
+        "creation_date": 17,
+        "update_date": 18
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        UniqueConstraint('chapter_id', 'activity_id', name='uq_chapteractivity_chapter_activity'),\n    )"
+      ],
+      "v2_requirements": [
+        "S03",
+        "T03"
+      ],
+      "reuse": "活动顺序和关系可复用",
+      "gap": "内容证据版本必须另外绑定"
+    },
+    {
+      "model": "ActivityVersion",
+      "table": "activityversion",
+      "source": {
+        "path": "apps/api/src/db/courses/activity_versions.py",
+        "line": 20
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/e5f6a7b8c9d0_add_activity_versioning.py",
+          "line": 36
+        },
+        {
+          "path": "apps/api/migrations/versions/p5d2e8f4a6c1_add_activity_collab_state.py",
+          "line": 46
+        }
+      ],
+      "actual_fields": [
+        "content",
+        "version_number",
+        "created_by_id",
+        "label",
+        "id",
+        "activity_id",
+        "org_id",
+        "created_at"
+      ],
+      "field_source_lines": {
+        "content": 9,
+        "version_number": 10,
+        "created_by_id": 11,
+        "label": 17,
+        "id": 25,
+        "activity_id": 26,
+        "org_id": 29,
+        "created_at": 32
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [],
+      "v2_requirements": [
+        "T07",
+        "T08",
+        "AC03",
+        "AC06"
+      ],
+      "reuse": "编辑历史可作为参考",
+      "gap": "versioning.py仅留最近20版且只快照activity.content；不能作为永久题目/量规证据"
+    },
+    {
+      "model": "Assignment",
+      "table": "assignment",
+      "source": {
+        "path": "apps/api/src/db/courses/assignments.py",
+        "line": 234
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/b1c2d3e4f5a6_add_ungraded_and_solution_to_assignment.py",
+          "line": 67
+        },
+        {
+          "path": "apps/api/migrations/versions/e7f8a9b0c1d2_add_pass_threshold_to_assignment.py",
+          "line": 31
+        }
+      ],
+      "actual_fields": [
+        "title",
+        "description",
+        "due_date",
+        "published",
+        "grading_type",
+        "auto_grading",
+        "anti_copy_paste",
+        "show_correct_answers",
+        "allow_retries",
+        "max_retries",
+        "pass_threshold_percentage",
+        "ungraded",
+        "solution",
+        "solution_file",
+        "solution_reveal",
+        "ai_grading_mode",
+        "ai_grading_instructions",
+        "ai_grading_task_instructions",
+        "org_id",
+        "course_id",
+        "chapter_id",
+        "activity_id",
+        "id",
+        "creation_date",
+        "update_date",
+        "assignment_uuid"
+      ],
+      "field_source_lines": {
+        "title": 87,
+        "description": 88,
+        "due_date": 94,
+        "published": 95,
+        "grading_type": 96,
+        "auto_grading": 100,
+        "anti_copy_paste": 104,
+        "show_correct_answers": 110,
+        "allow_retries": 116,
+        "max_retries": 120,
+        "pass_threshold_percentage": 124,
+        "ungraded": 131,
+        "solution": 138,
+        "solution_file": 141,
+        "solution_reveal": 142,
+        "ai_grading_mode": 146,
+        "ai_grading_instructions": 147,
+        "ai_grading_task_instructions": 148,
+        "org_id": 246,
+        "course_id": 249,
+        "chapter_id": 252,
+        "activity_id": 255,
+        "id": 241,
+        "creation_date": 242,
+        "update_date": 243,
+        "assignment_uuid": 244
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_assignment_course_id\", \"course_id\"),\n        Index(\"ix_assignment_org_id\", \"org_id\"),\n    )"
+      ],
+      "v2_requirements": [
+        "S05",
+        "T09",
+        "P10",
+        "P12"
+      ],
+      "reuse": "题目容器、截止日、答案显示、重试与AI模式可复用",
+      "gap": "无class_id、opens_at、resource_version_id、rubric_version_id、policy_version_id；不得假称已有"
+    },
+    {
+      "model": "AssignmentTask",
+      "table": "assignmenttask",
+      "source": {
+        "path": "apps/api/src/db/courses/assignments.py",
+        "line": 337
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/d8bc71595932_add_reference_for_assignmenttasks.py",
+          "line": 24
+        },
+        {
+          "path": "apps/api/migrations/versions/c2d3e4f5a6b7_add_order_to_assignment_task.py",
+          "line": 30
+        }
+      ],
+      "actual_fields": [
+        "title",
+        "description",
+        "hint",
+        "reference_file",
+        "assignment_type",
+        "contents",
+        "max_grade_value",
+        "id",
+        "assignment_task_uuid",
+        "order",
+        "creation_date",
+        "update_date",
+        "assignment_id",
+        "org_id",
+        "course_id",
+        "chapter_id",
+        "activity_id"
+      ],
+      "field_source_lines": {
+        "title": 283,
+        "description": 284,
+        "hint": 285,
+        "reference_file": 286,
+        "assignment_type": 287,
+        "contents": 288,
+        "max_grade_value": 299,
+        "id": 340,
+        "assignment_task_uuid": 342,
+        "order": 343,
+        "creation_date": 344,
+        "update_date": 345,
+        "assignment_id": 347,
+        "org_id": 352,
+        "course_id": 355,
+        "chapter_id": 358,
+        "activity_id": 361
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [],
+      "v2_requirements": [
+        "S05",
+        "S06",
+        "T09"
+      ],
+      "reuse": "QUIZ/SHORT_ANSWER/CODE等题型与contents及分值可复用",
+      "gap": "修改评分字段会触发旧成绩重算；V2布置后需锁定快照；Demo不执行CODE代码"
+    },
+    {
+      "model": "AssignmentTaskSubmission",
+      "table": "assignmenttasksubmission",
+      "source": {
+        "path": "apps/api/src/db/courses/assignments.py",
+        "line": 438
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/a2b3c4d5e6f7_unique_assignment_submission_rows.py",
+          "line": 33
+        },
+        {
+          "path": "apps/api/migrations/versions/a1b2c3d4e5f7_add_manually_graded_to_task_submission.py",
+          "line": 30
+        }
+      ],
+      "actual_fields": [
+        "assignment_task_submission_uuid",
+        "task_submission",
+        "grade",
+        "task_submission_grade_feedback",
+        "manually_graded",
+        "assignment_type",
+        "user_id",
+        "activity_id",
+        "course_id",
+        "chapter_id",
+        "assignment_task_id",
+        "id",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "assignment_task_submission_uuid": 451,
+        "task_submission": 452,
+        "grade": 453,
+        "task_submission_grade_feedback": 454,
+        "manually_graded": 455,
+        "assignment_type": 456,
+        "user_id": 458,
+        "activity_id": 461,
+        "course_id": 464,
+        "chapter_id": 467,
+        "assignment_task_id": 470,
+        "id": 450,
+        "creation_date": 476,
+        "update_date": 477
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        UniqueConstraint(\n            \"user_id\", \"assignment_task_id\",\n            name=\"uq_assignmenttasksubmission_user_task\",\n        ),\n    )"
+      ],
+      "v2_requirements": [
+        "S06",
+        "S07",
+        "T10",
+        "P11"
+      ],
+      "reuse": "当前作答/评分显示结构可参考",
+      "gap": "唯一(user_id,assignment_task_id)，无attempt外键/提交版本；重试会删除；不能当不可变正式提交"
+    },
+    {
+      "model": "AssignmentUserSubmission",
+      "table": "assignmentusersubmission",
+      "source": {
+        "path": "apps/api/src/db/courses/assignments.py",
+        "line": 557
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/df2981bf24dd_initial_migration.py",
+          "line": 31
+        },
+        {
+          "path": "apps/api/migrations/versions/x3y4z5a6b7c8_assignment_grading_upgrades.py",
+          "line": 49
+        }
+      ],
+      "actual_fields": [
+        "submission_status",
+        "grade",
+        "overall_feedback",
+        "attempt_number",
+        "user_id",
+        "assignment_id",
+        "id",
+        "creation_date",
+        "update_date",
+        "assignmentusersubmission_uuid"
+      ],
+      "field_source_lines": {
+        "submission_status": 575,
+        "grade": 578,
+        "overall_feedback": 579,
+        "attempt_number": 580,
+        "user_id": 581,
+        "assignment_id": 584,
+        "id": 570,
+        "creation_date": 571,
+        "update_date": 572,
+        "assignmentusersubmission_uuid": 573
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        UniqueConstraint(\n            \"user_id\", \"assignment_id\",\n            name=\"uq_assignmentusersubmission_user_assignment\",\n        ),\n    )"
+      ],
+      "v2_requirements": [
+        "S07",
+        "T10",
+        "AC06",
+        "AC09"
+      ],
+      "reuse": "当前汇总状态与成绩显示可参考",
+      "gap": "唯一(user_id,assignment_id)，attempt_number是计数非历史；retry原地重置"
+    },
+    {
+      "model": "AssignmentAIGrade",
+      "table": "assignmentaigrade",
+      "source": {
+        "path": "apps/api/src/db/courses/assignment_ai_grades.py",
+        "line": 27
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/m4a1c7e2b9d6_add_ai_grading_to_assignments.py",
+          "line": 58
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "assignment_ai_grade_uuid",
+        "assignment_id",
+        "user_id",
+        "org_id",
+        "status",
+        "mode",
+        "attempt_number",
+        "overall_feedback",
+        "tasks",
+        "confidence",
+        "notes",
+        "sources",
+        "credits_charged",
+        "model",
+        "error",
+        "triggered_by",
+        "applied_by",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "id": 34,
+        "assignment_ai_grade_uuid": 35,
+        "assignment_id": 36,
+        "user_id": 44,
+        "org_id": 49,
+        "status": 55,
+        "mode": 56,
+        "attempt_number": 57,
+        "overall_feedback": 58,
+        "tasks": 61,
+        "confidence": 62,
+        "notes": 63,
+        "sources": 66,
+        "credits_charged": 67,
+        "model": 68,
+        "error": 69,
+        "triggered_by": 72,
+        "applied_by": 73,
+        "creation_date": 74,
+        "update_date": 75
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        UniqueConstraint(\n            \"assignment_id\", \"user_id\", name=\"uq_assignmentaigrade_assignment_user\"\n        ),\n    )"
+      ],
+      "v2_requirements": [
+        "T10",
+        "S07",
+        "P13"
+      ],
+      "reuse": "AI建议DRAFT与APPLIED状态、来源、model及applied_by可参考",
+      "gap": "唯一(assignment_id,user_id)，retry清除，不能作AI建议/教师评分所有修订的永久存证"
+    },
+    {
+      "model": "LearnerNote",
+      "table": "learner_note",
+      "source": {
+        "path": "apps/api/src/db/learner_notes.py",
+        "line": 30
+      },
+      "table_name_basis": "explicit __tablename__",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/q2n7l4e8r1t5_add_learner_notes.py",
+          "line": 27
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "note_uuid",
+        "org_id",
+        "user_id",
+        "course_id",
+        "activity_id",
+        "content",
+        "plain_text",
+        "anchor_kind",
+        "anchor_ref",
+        "anchor_label",
+        "anchor_seconds",
+        "created_at",
+        "updated_at"
+      ],
+      "field_source_lines": {
+        "id": 37,
+        "note_uuid": 38,
+        "org_id": 39,
+        "user_id": 42,
+        "course_id": 45,
+        "activity_id": 48,
+        "content": 51,
+        "plain_text": 52,
+        "anchor_kind": 55,
+        "anchor_ref": 56,
+        "anchor_label": 57,
+        "anchor_seconds": 58,
+        "created_at": 59,
+        "updated_at": 60
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_learner_note_user_activity\", \"user_id\", \"activity_id\"),\n        Index(\"ix_learner_note_user_org_course\", \"user_id\", \"org_id\", \"course_id\"),\n    )"
+      ],
+      "v2_requirements": [
+        "S04",
+        "C02",
+        "P06",
+        "AC14"
+      ],
+      "reuse": "本人私有笔记正文与锚点直接复用",
+      "gap": "暂无显式共享、撤销和画像用途许可对象；原服务无管理员跨用户读取；删除成员会清理笔记"
+    },
+    {
+      "model": "AIGeneration",
+      "table": "aigeneration",
+      "source": {
+        "path": "apps/api/src/db/ai/generations.py",
+        "line": 65
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/b7c8d9e0f1a2_add_scenario_aigeneration_kind.py",
+          "line": 31
+        },
+        {
+          "path": "apps/api/migrations/versions/f9e8d7c6b5a4_add_ai_generation_history.py",
+          "line": 44
+        }
+      ],
+      "actual_fields": [
+        "kind",
+        "prompt",
+        "session_uuid",
+        "result",
+        "id",
+        "ai_generation_uuid",
+        "creation_date",
+        "update_date",
+        "org_id",
+        "user_id",
+        "course_id",
+        "activity_id",
+        "assignment_id"
+      ],
+      "field_source_lines": {
+        "kind": 27,
+        "prompt": 29,
+        "session_uuid": 33,
+        "result": 38,
+        "id": 74,
+        "ai_generation_uuid": 75,
+        "creation_date": 76,
+        "update_date": 77,
+        "org_id": 79,
+        "user_id": 82,
+        "course_id": 87,
+        "activity_id": 91,
+        "assignment_id": 95
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_aigeneration_org_id\", \"org_id\"),\n        Index(\"ix_aigeneration_user_id\", \"user_id\"),\n        Index(\"ix_aigeneration_kind\", \"kind\"),\n    )"
+      ],
+      "v2_requirements": [
+        "T06",
+        "T07",
+        "P07"
+      ],
+      "reuse": "保留的AI生成成品可关联",
+      "gap": "prompt/result是正文；非可恢复任务状态机，缺双闭环研究生成/规则模板校验审核语义"
+    },
+    {
+      "model": "CourseEmbedding",
+      "table": "course_embedding",
+      "source": {
+        "path": "apps/api/src/db/course_embeddings.py",
+        "line": 8
+      },
+      "table_name_basis": "explicit __tablename__",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/b6e199d023f8_course_embedding_locator_hash_index.py",
+          "line": 33
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "org_id",
+        "course_id",
+        "activity_id",
+        "activity_uuid",
+        "block_uuid",
+        "source_type",
+        "chunk_text",
+        "chunk_index",
+        "locator",
+        "content_hash",
+        "activity_name",
+        "chapter_name",
+        "course_name",
+        "embedding",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "id": 22,
+        "org_id": 23,
+        "course_id": 26,
+        "activity_id": 30,
+        "activity_uuid": 34,
+        "block_uuid": 35,
+        "source_type": 37,
+        "chunk_text": 38,
+        "chunk_index": 39,
+        "locator": 41,
+        "content_hash": 45,
+        "activity_name": 46,
+        "chapter_name": 47,
+        "course_name": 48,
+        "embedding": 49,
+        "creation_date": 50,
+        "update_date": 51
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_course_embedding_org_id\", \"org_id\"),\n        Index(\"ix_course_embedding_course_id\", \"course_id\"),\n        Index(\"ix_course_embedding_course_activity\", \"course_id\", \"activity_id\"),\n        Index(\n            \"ix_course_embedding_embedding_hnsw\",\n            \"embedding\",\n            postgresql_using=\"hnsw\",\n            postgresql_ops={\"embedding\": \"vector_cosine_ops\"},\n        ),\n    )"
+      ],
+      "v2_requirements": [
+        "S04",
+        "T05",
+        "AC13"
+      ],
+      "reuse": "片段及来源locator/content_hash可参考",
+      "gap": "没有V2解析失败/无文本门禁和版本发布权限模型；检索/引用/附件须重验权"
+    },
+    {
+      "model": "Trail",
+      "table": "trail",
+      "source": {
+        "path": "apps/api/src/db/trails.py",
+        "line": 17
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/df2981bf24dd_initial_migration.py",
+          "line": 33
+        },
+        {
+          "path": "apps/api/migrations/versions/e4f7a2c9b1d3_add_hot_path_indexes.py",
+          "line": 44
+        }
+      ],
+      "actual_fields": [
+        "org_id",
+        "user_id",
+        "id",
+        "trail_uuid",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "org_id": 22,
+        "user_id": 25,
+        "id": 21,
+        "trail_uuid": 28,
+        "creation_date": 29,
+        "update_date": 30
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_trail_user_org\", \"user_id\", \"org_id\"),\n    )"
+      ],
+      "v2_requirements": [
+        "S01",
+        "S02",
+        "T11"
+      ],
+      "reuse": "学生学习轨迹入口可复用",
+      "gap": "不表示知识点掌握状态"
+    },
+    {
+      "model": "TrailRun",
+      "table": "trailrun",
+      "source": {
+        "path": "apps/api/src/db/trail_runs.py",
+        "line": 21
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/cb2029aadc2d_cloud_changes.py",
+          "line": 60
+        },
+        {
+          "path": "apps/api/migrations/versions/h8c9d0e1f2a3_add_performance_indexes.py",
+          "line": 37
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "data",
+        "status",
+        "trail_id",
+        "course_id",
+        "org_id",
+        "user_id",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "id": 34,
+        "data": 35,
+        "status": 36,
+        "trail_id": 38,
+        "course_id": 41,
+        "org_id": 44,
+        "user_id": 47,
+        "creation_date": 51,
+        "update_date": 52
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        UniqueConstraint(\n            \"trail_id\", \"course_id\", \"user_id\", name=\"uq_trailrun_trail_course_user\"\n        ),\n        {\"extend_existing\": True},\n    )"
+      ],
+      "v2_requirements": [
+        "S01",
+        "S02",
+        "T11"
+      ],
+      "reuse": "课程学习运行与进度可复用",
+      "gap": "不是课程内画像版本/证据链"
+    },
+    {
+      "model": "TrailStep",
+      "table": "trailstep",
+      "source": {
+        "path": "apps/api/src/db/trail_steps.py",
+        "line": 13
+      },
+      "table_name_basis": "SQLModel默认类名小写；外键或迁移字符串交叉核查",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/d3e4f5a6b7c8_add_missing_performance_indexes.py",
+          "line": 35
+        },
+        {
+          "path": "apps/api/migrations/versions/cb2029aadc2d_cloud_changes.py",
+          "line": 68
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "complete",
+        "teacher_verified",
+        "grade",
+        "data",
+        "trailrun_id",
+        "trail_id",
+        "activity_id",
+        "course_id",
+        "org_id",
+        "user_id",
+        "creation_date",
+        "update_date"
+      ],
+      "field_source_lines": {
+        "id": 26,
+        "complete": 27,
+        "teacher_verified": 28,
+        "grade": 29,
+        "data": 30,
+        "trailrun_id": 32,
+        "trail_id": 35,
+        "activity_id": 38,
+        "course_id": 41,
+        "org_id": 44,
+        "user_id": 47,
+        "creation_date": 51,
+        "update_date": 52
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_trailstep_trailrun_user\", \"trailrun_id\", \"user_id\"),\n        # One completion step per (run, activity, user). The service does a\n        # racy check-then-insert; without this constraint concurrent requests\n        # create duplicate steps, which inflates completion counts and can\n        # trigger duplicate certificate issuance / COURSE_COMPLETED webhooks.\n        # (Requires a matching migration to apply to the live DB.)\n        UniqueConstraint(\n            \"trailrun_id\", \"activity_id\", \"user_id\",\n            name=\"uq_trailstep_run_activity_user\",\n        ),\n    )"
+      ],
+      "v2_requirements": [
+        "S01",
+        "S08",
+        "T11"
+      ],
+      "reuse": "活动完成与当前grade可用于基础进度",
+      "gap": "完成不等于掌握；缺Good/Bad/Unknown和证据版本；重试重置完成状态"
+    },
+    {
+      "model": "UserAuditEvent",
+      "table": "user_audit_event",
+      "source": {
+        "path": "apps/api/src/db/user_audit_events.py",
+        "line": 54
+      },
+      "table_name_basis": "explicit __tablename__",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/b8c9d0e1f2a3_add_user_audit_event.py",
+          "line": 41
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "org_id",
+        "user_id",
+        "event_type",
+        "ip",
+        "user_agent",
+        "target_uuid",
+        "audit_metadata",
+        "created_at"
+      ],
+      "field_source_lines": {
+        "id": 71,
+        "org_id": 75,
+        "user_id": 83,
+        "event_type": 92,
+        "ip": 95,
+        "user_agent": 96,
+        "target_uuid": 101,
+        "audit_metadata": 108,
+        "created_at": 110
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_user_audit_event_org_user_created\", \"org_id\", \"user_id\", \"created_at\"),\n        Index(\"ix_user_audit_event_user_type_created\", \"user_id\", \"event_type\", \"created_at\"),\n    )"
+      ],
+      "v2_requirements": [
+        "A06",
+        "S07",
+        "P20"
+      ],
+      "reuse": "学习者事件可复用为事件来源",
+      "gap": "源代码明确排除authoring/admin动作；事件元数据不等于完整历史作答；外键有CASCADE需注意正式记录保留"
+    },
+    {
+      "model": "AIUsageEvent",
+      "table": "ai_usage_event",
+      "source": {
+        "path": "apps/api/src/db/ai_usage.py",
+        "line": 19
+      },
+      "table_name_basis": "explicit __tablename__",
+      "migration_mentions": [
+        {
+          "path": "apps/api/migrations/versions/t1a2c3r4e5d6_add_ai_usage_event.py",
+          "line": 25
+        }
+      ],
+      "actual_fields": [
+        "id",
+        "org_id",
+        "user_id",
+        "feature",
+        "status",
+        "credits",
+        "cost_micros",
+        "units",
+        "requests",
+        "input_tokens",
+        "output_tokens",
+        "models",
+        "charge_key",
+        "created_at"
+      ],
+      "field_source_lines": {
+        "id": 27,
+        "org_id": 28,
+        "user_id": 30,
+        "feature": 31,
+        "status": 33,
+        "credits": 34,
+        "cost_micros": 36,
+        "units": 37,
+        "requests": 38,
+        "input_tokens": 39,
+        "output_tokens": 40,
+        "models": 42,
+        "charge_key": 44,
+        "created_at": 45
+      },
+      "database_column_aliases": {},
+      "declared_table_constraints": [
+        "__table_args__ = (\n        Index(\"ix_ai_usage_event_org_created\", \"org_id\", \"created_at\"),\n        Index(\"ix_ai_usage_event_feature_created\", \"feature\", \"created_at\"),\n        Index(\"ix_ai_usage_event_charge_key\", \"charge_key\", unique=True),\n    )"
+      ],
+      "v2_requirements": [
+        "A01",
+        "A05",
+        "P18"
+      ],
+      "reuse": "费用credits/tokens/charge_key元数据可复用",
+      "gap": "不是任务重试/取消/迟到回调状态机；不能据存在usage表宣称队列恢复完成"
+    }
+  ],
+  "rbac_gaps": [
+    {
+      "requirement": "管理员默认无教学正文权",
+      "upstream_evidence": [
+        {
+          "path": "apps/api/src/services/setup/setup.py",
+          "symbol": "install_default_elements / role_global_admin"
+        },
+        {
+          "path": "apps/api/src/security/rbac/resource_access.py",
+          "symbol": "_check_dashboard_read_access / _check_public_view_read_access"
+        },
+        {
+          "path": "apps/api/src/security/rbac/rbac.py",
+          "symbol": "authorization_verify_based_on_org_admin_status / authorization_verify_based_on_roles_and_authorship"
+        }
+      ],
+      "finding": "Admin/Maintainer或backoffice存在教学资源读取与写入能力",
+      "mandatory_action": "V2管理员使用无教学特权身份；覆盖原路由/附件/检索所有旁路；管理员角色标签不能当权限实现"
+    },
+    {
+      "requirement": "编辑/审核/发布/批阅分离且教师不能跨班",
+      "upstream_evidence": [
+        {
+          "path": "apps/api/src/db/roles.py",
+          "symbol": "Rights / Permission"
+        },
+        {
+          "path": "apps/api/src/services/courses/activities/assignments.py",
+          "symbol": "authorize_assignment_access / _is_assignment_instructor / grade_assignment_submission"
+        }
+      ],
+      "finding": "以课程UPDATE作为教师/评分能力，token assignments单桶可有教师可见性",
+      "mandatory_action": "显式动作+course+class+assignment+owner过滤，不把usergroup只读访问等同批阅"
+    },
+    {
+      "requirement": "私人笔记默认仅本人",
+      "upstream_evidence": [
+        {
+          "path": "apps/api/src/services/courses/activities/learner_notes.py",
+          "symbol": "_own_note / list_activity_notes"
+        }
+      ],
+      "finding": "已有本人过滤且不存在管理员跨用户笔记列表",
+      "mandatory_action": "保留已有边界，增加显式共享授权，不扩展全局管理员正文读取"
+    },
+    {
+      "requirement": "已提交版本与成绩历史永久可追溯",
+      "upstream_evidence": [
+        {
+          "path": "apps/api/src/services/courses/activities/versioning.py",
+          "symbol": "MAX_ACTIVITY_VERSIONS / cleanup_old_versions"
+        },
+        {
+          "path": "apps/api/src/services/courses/activities/assignments.py",
+          "symbol": "retry_assignment_submission / update_assignment_task"
+        }
+      ],
+      "finding": "仅留20版活动历史；retry清题目作答并复用汇总；编辑题目可触发旧成绩重算",
+      "mandatory_action": "独立冻结资源版本、attempt/submission/grade_revision，不沿用破坏性retry或静默改题重评"
+    }
+  ],
+  "proposed_extensions": [
+    {
+      "object": "教学动作授权与独立审批",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_access_grant",
+        "edu_grant_approval"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "A02",
+        "A03",
+        "P02",
+        "P03",
+        "P05",
+        "P08",
+        "P09",
+        "P10",
+        "P11",
+        "P13",
+        "AC02"
+      ],
+      "upstream_tables": [
+        "user",
+        "organization",
+        "course",
+        "usergroup",
+        "role",
+        "userorganization",
+        "resourceauthor"
+      ],
+      "reason": "现有CRUD与Admin/Maintainer旁路不符合管理员默认无正文权",
+      "proposed_fields_not_upstream": [
+        "subject_user_id",
+        "org_id",
+        "course_id",
+        "class_group_id",
+        "action",
+        "target_type",
+        "target_id",
+        "starts_at",
+        "expires_at",
+        "revoked_at",
+        "granted_by",
+        "approved_by"
+      ],
+      "required_invariants": [
+        "管理员管理元数据不隐含content.read/grade.confirm等动作",
+        "审批者与自我提权受益者独立",
+        "每次正文/附件/检索/异步回调重新校验对象范围",
+        "原上游路由不得绕过新增策略"
+      ]
+    },
+    {
+      "object": "不可变资源和策略快照",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_resource_version",
+        "edu_policy_version"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "T03",
+        "T07",
+        "T08",
+        "T09",
+        "A04",
+        "AC03",
+        "AC04",
+        "AC06"
+      ],
+      "upstream_tables": [
+        "course",
+        "activity",
+        "activityversion",
+        "assignment",
+        "assignmenttask"
+      ],
+      "reason": "编辑历史有20版清理且不覆盖完整题目量规",
+      "proposed_fields_not_upstream": [
+        "org_id",
+        "course_id",
+        "activity_id",
+        "version_no",
+        "content_snapshot",
+        "rubric_snapshot",
+        "source_refs",
+        "content_hash",
+        "policy_snapshot",
+        "created_by",
+        "created_at"
+      ],
+      "required_invariants": [
+        "字段均为拟新增，不是activityversion现有字段",
+        "发布/布置后引用版本不可原地修改",
+        "既有needs_review不可被策略变更清除",
+        "已提交证据不得被上游CASCADE/版本清理抹除"
+      ]
+    },
+    {
+      "object": "校验审核与发布",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_validation_run",
+        "edu_content_review",
+        "edu_release"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "T06",
+        "T07",
+        "T08",
+        "P08",
+        "P09",
+        "AC04",
+        "AC05"
+      ],
+      "upstream_tables": [
+        "activity",
+        "aigeneration"
+      ],
+      "reason": "published布尔值无法表示确定性校验、审核和发布各阶段",
+      "proposed_fields_not_upstream": [
+        "resource_version_id",
+        "validation_result",
+        "validator_version",
+        "review_status",
+        "reviewer_id",
+        "reason",
+        "release_scope",
+        "policy_version_id",
+        "service_principal_id",
+        "revoked_at"
+      ],
+      "required_invariants": [
+        "校验失败不可批准或发布",
+        "修改产新版本并重新校验",
+        "自动发布仅规则模式通过且无人工门禁",
+        "撤回阻止新访问/推荐但保存正式证据"
+      ]
+    },
+    {
+      "object": "班级任务与冻结规则绑定",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_assignment_binding"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "T09",
+        "S05",
+        "P10",
+        "AC03",
+        "AC06"
+      ],
+      "upstream_tables": [
+        "assignment",
+        "course",
+        "usergroup"
+      ],
+      "reason": "现有作业无class与资源/量规/策略版本固定绑定",
+      "proposed_fields_not_upstream": [
+        "assignment_id",
+        "org_id",
+        "course_id",
+        "class_group_id",
+        "resource_version_id",
+        "rubric_version_id",
+        "policy_version_id",
+        "opens_at",
+        "due_at",
+        "answer_reveal_rule",
+        "retry_rule",
+        "closed_at"
+      ],
+      "required_invariants": [
+        "同一请求对象全部属于同组织同课程授权范围",
+        "未发布资源不得布置",
+        "已收提交后不静默替换规则",
+        "策略变更只影响后续任务"
+      ]
+    },
+    {
+      "object": "草稿尝试与不可变正式提交",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_attempt",
+        "edu_submission"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "S05",
+        "S06",
+        "S07",
+        "P11",
+        "AC06"
+      ],
+      "upstream_tables": [
+        "assignment",
+        "assignmenttask",
+        "assignmenttasksubmission",
+        "assignmentusersubmission",
+        "user"
+      ],
+      "reason": "当前行唯一约束和retry覆盖语义不能保存历史尝试",
+      "proposed_fields_not_upstream": [
+        "assignment_binding_id",
+        "user_id",
+        "attempt_no",
+        "resource_version_id",
+        "draft_payload",
+        "draft_revision",
+        "submission_payload",
+        "submitted_at",
+        "receipt_id",
+        "idempotency_key"
+      ],
+      "required_invariants": [
+        "私人草稿仅本人，教师只读正式提交",
+        "正式提交快照不可原地改写，订正创建新attempt",
+        "同尝试提交幂等且成功前保留草稿",
+        "提交时再次校验时间与有效补交授权",
+        "Demo代码仅文本，不执行学生代码"
+      ]
+    },
+    {
+      "object": "AI建议与生效成绩修订",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_grade_revision"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "S07",
+        "T10",
+        "P13",
+        "AC07",
+        "AC08",
+        "AC09"
+      ],
+      "upstream_tables": [
+        "assignmentaigrade",
+        "assignmentusersubmission",
+        "assignmenttasksubmission"
+      ],
+      "reason": "上游成绩是当前值，AI一人一作业只有一行",
+      "proposed_fields_not_upstream": [
+        "submission_id",
+        "revision_no",
+        "source_kind",
+        "status",
+        "grade_payload",
+        "feedback",
+        "model",
+        "rule_version",
+        "grader_id",
+        "reason",
+        "supersedes_id",
+        "effective_at",
+        "expected_revision"
+      ],
+      "required_invariants": [
+        "AI候选和教师结果分别存证",
+        "待批不进入掌握更新，异常不直接判错",
+        "每次重评保留原结果和原因",
+        "唯一有效成绩指针/版本并发检查",
+        "管理员无默认确认或改分权"
+      ]
+    },
+    {
+      "object": "复核和有限补交许可",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_review_request",
+        "edu_retry_authorization"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "S05",
+        "S07",
+        "T10",
+        "P14",
+        "AC06",
+        "AC09"
+      ],
+      "upstream_tables": [
+        "user",
+        "assignment",
+        "assignmentusersubmission"
+      ],
+      "reason": "现有allow_retries/max_retries不是个人期限次数授权，也没有结果版本复核对象",
+      "proposed_fields_not_upstream": [
+        "submission_id",
+        "grade_revision_id",
+        "requester_id",
+        "reason",
+        "status",
+        "decision",
+        "reviewer_id",
+        "valid_from",
+        "valid_until",
+        "max_uses",
+        "used_count"
+      ],
+      "required_invariants": [
+        "同一结果版本仅一个有效复核",
+        "过期或耗尽的补交许可拒绝新尝试/提交",
+        "teacher只能处理授权班级任务",
+        "不调用上游破坏性retry作为V2历史机制"
+      ]
+    },
+    {
+      "object": "解析任务与可引用资料",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_material_ingest"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "T05",
+        "S04",
+        "AC13"
+      ],
+      "upstream_tables": [
+        "activity",
+        "course_embedding"
+      ],
+      "reason": "存在RAG片段不等于已有解析质量门禁",
+      "proposed_fields_not_upstream": [
+        "course_id",
+        "source_object_ref",
+        "source_hash",
+        "parse_status",
+        "text_available",
+        "parser_version",
+        "error_code",
+        "resource_version_id"
+      ],
+      "required_invariants": [
+        "无文本PDF或解析失败不进入生成/检索",
+        "引用跳转重验当前访问权限",
+        "考试受限答案不进入学生问答返回"
+      ]
+    },
+    {
+      "object": "生成与评分运行状态",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_job_run"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "T06",
+        "A05",
+        "P07",
+        "P18",
+        "P19",
+        "AC05",
+        "AC11",
+        "AC12"
+      ],
+      "upstream_tables": [
+        "aigeneration",
+        "ai_usage_event"
+      ],
+      "reason": "aigeneration记录保留成品，不是可恢复队列/双闭环执行记录",
+      "proposed_fields_not_upstream": [
+        "job_kind",
+        "mode",
+        "course_id",
+        "owner_id",
+        "status",
+        "stage",
+        "attempt_count",
+        "budget_limit",
+        "budget_used",
+        "idempotency_key",
+        "policy_version_id",
+        "cancelled_at",
+        "error_code",
+        "result_ref"
+      ],
+      "required_invariants": [
+        "研究/规则模板和示例/模拟/真实分别标记",
+        "预算耗尽停止；无模型明确未接通",
+        "日志默认无正文，元数据不返回prompt/result",
+        "取消或撤权后的迟到回调不得产生新发布/成绩"
+      ]
+    },
+    {
+      "object": "幂等领域事件与更新执行",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_domain_event",
+        "edu_event_delivery"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "S07",
+        "S08",
+        "T11",
+        "A05",
+        "AC07",
+        "AC09",
+        "AC10",
+        "AC11"
+      ],
+      "upstream_tables": [
+        "ai_usage_event",
+        "user_audit_event"
+      ],
+      "reason": "支付/学习者事件不能替代成绩到画像到推荐的可靠幂等链",
+      "proposed_fields_not_upstream": [
+        "event_id",
+        "event_type",
+        "aggregate_id",
+        "aggregate_version",
+        "payload_refs",
+        "deduplication_key",
+        "consumer",
+        "status",
+        "retry_count",
+        "last_error"
+      ],
+      "required_invariants": [
+        "提交或改分与领域事件同事务落库",
+        "重复回调只产生一个有效结果/一次相应画像更新",
+        "阶段失败与待处理可见，不提前显示全部成功"
+      ]
+    },
+    {
+      "object": "课程内学习画像与证据",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_learning_state_version",
+        "edu_learning_evidence"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "S08",
+        "T11",
+        "P15",
+        "AC07",
+        "AC09",
+        "AC12"
+      ],
+      "upstream_tables": [
+        "trail",
+        "trailrun",
+        "trailstep",
+        "user_audit_event"
+      ],
+      "reason": "活动完成不是知识点掌握，没有Good/Bad/Unknown和证据版本",
+      "proposed_fields_not_upstream": [
+        "user_id",
+        "course_id",
+        "knowledge_point_id",
+        "state",
+        "state_version",
+        "source_kind",
+        "grade_revision_id",
+        "evidence_refs",
+        "computed_at",
+        "update_status"
+      ],
+      "required_invariants": [
+        "无证据标Unknown，不用假百分比",
+        "只使用已生效结果",
+        "学生本人当前课程，教师授权课程班级，管理员默认聚合",
+        "摘要访问不意味着证据原文权；打开原文再次按P06/P11鉴权"
+      ]
+    },
+    {
+      "object": "推荐与教师干预",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_recommendation",
+        "edu_teaching_intervention"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "S08",
+        "T11",
+        "T09",
+        "P16",
+        "AC07",
+        "AC09",
+        "AC10"
+      ],
+      "upstream_tables": [
+        "course",
+        "activity",
+        "assignment",
+        "usergroup"
+      ],
+      "reason": "无上游课程证据版本驱动的V2推荐和干预对象",
+      "proposed_fields_not_upstream": [
+        "learning_state_version_id",
+        "user_id",
+        "course_id",
+        "target_resource_version_id",
+        "reason",
+        "status",
+        "actor_id",
+        "intervention_reason",
+        "effective_for_future_tasks"
+      ],
+      "required_invariants": [
+        "推荐再次过滤已发布和当前授权",
+        "不得替换已开始尝试绑定题目",
+        "撤回资源不可新推荐",
+        "教师干预留理由并限定授权范围"
+      ]
+    },
+    {
+      "object": "笔记共享与用途许可",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_note_share",
+        "edu_note_use_consent"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "S04",
+        "C02",
+        "T11",
+        "P06",
+        "AC14"
+      ],
+      "upstream_tables": [
+        "learner_note",
+        "user",
+        "course"
+      ],
+      "reason": "上游仅本人私有；共享原文与用于画像是两种授权",
+      "proposed_fields_not_upstream": [
+        "note_id",
+        "owner_id",
+        "recipient_id",
+        "course_id",
+        "shared_content_snapshot",
+        "permission_kind",
+        "granted_at",
+        "revoked_at"
+      ],
+      "required_invariants": [
+        "默认不共享，管理员不能读私人笔记",
+        "学生主动指定共享部分与接收对象",
+        "撤销停止后续访问，正式提交按记录策略保留",
+        "画像用途许可不等于全文分享"
+      ]
+    },
+    {
+      "object": "社区业务审计",
+      "status": "proposed_not_upstream",
+      "proposed_tables": [
+        "edu_business_audit_event"
+      ],
+      "priority": "V2 Demo必需",
+      "v2_requirements": [
+        "A06",
+        "S07",
+        "T07",
+        "T10",
+        "P20",
+        "AC09",
+        "AC11"
+      ],
+      "upstream_tables": [
+        "user_audit_event",
+        "ai_usage_event"
+      ],
+      "reason": "EE audit_event无EE为no-op，社区学习者日志不覆盖管理/发布/改分",
+      "proposed_fields_not_upstream": [
+        "actor_id",
+        "actor_kind",
+        "action",
+        "org_id",
+        "course_id",
+        "scope_ref",
+        "target_type",
+        "target_id",
+        "version_ref",
+        "result",
+        "reason_code",
+        "correlation_id",
+        "created_at"
+      ],
+      "required_invariants": [
+        "只追加，不在默认日志保存密码令牌或正文",
+        "A06只返回必要元数据，正文跳转另查教学授权",
+        "对授权/发布/改分/取消重试保留可追溯编号",
+        "不依赖企业audit_logs表或API"
+      ]
+    }
+  ],
+  "minimum_integration": {
+    "new_api_prefix_proposal": "/api/v1/education-v2",
+    "router_mount": "apps/api/src/router.py:v1_router",
+    "identity_dependency": "apps/api/src/security/auth.py:get_current_user",
+    "session_dependency": "apps/api/src/core/events/database.py:get_db_session",
+    "new_model_path_proposal": "apps/api/src/db/education_v2.py",
+    "new_policy_path_proposal": "apps/api/src/security/education_v2.py",
+    "new_service_path_proposal": "apps/api/src/services/education_v2/",
+    "new_paths_exist_in_upstream": false,
+    "reuse_foreign_key_targets": [
+      "user.id",
+      "organization.id",
+      "course.id",
+      "activity.id",
+      "assignment.id",
+      "usergroup.id"
+    ],
+    "implementation_note": "这些是逻辑对象，可在最小试改中合并物理表，但不可省略权限、不可变版本与幂等约束；只有新增路由门禁不足以保护仍开放的原上游正文路由"
+  },
+  "verification_needed": [
+    "AC02三真实身份与跨课程/跨班/他人提交/附件编号替换，包括原上游API",
+    "AC06草稿保留、重复提交幂等、旧版本快照、到期补交拒绝",
+    "AC09复核改分保留旧结果并驱动一次画像与推荐更正",
+    "AC10撤权旧会话及取消后迟到回调拒绝",
+    "AC14私人笔记本人隔离、明确共享及撤回",
+    "OSS启动、迁移、真实认证和持久化尚未在本审计执行"
+  ]
+}

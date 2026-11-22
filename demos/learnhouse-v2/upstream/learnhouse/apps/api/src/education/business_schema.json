@@ -1,0 +1,4919 @@
+{
+  "components": {
+    "securitySchemes": {
+      "LearnHouseSessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "LH_access",
+        "description": "由既有POST /api/v1/auth/login设置；此schema不定义发放token接口。仅真实PublicUser会话，API token/匿名/backoffice token一律拒绝。"
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": "调用者为每个逻辑命令生成不重复键；自动重试保持同键同规范化请求。身份由会话派生，键按org/principal/operation隔离。"
+      },
+      "IfMatch": {
+        "name": "If-Match",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+        },
+        "description": "所有写均必需；来自下表指定的聚合/父集合GET。缺失428，过期412；不接受*或弱ETag。"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "retryable": {
+                "type": "boolean"
+              },
+              "capability_status": {
+                "type": "string",
+                "enum": [
+                  "unconfigured",
+                  "configured_unverified",
+                  "verified",
+                  "failed"
+                ]
+              },
+              "current_etag": {
+                "type": "string",
+                "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+              },
+              "violations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "field",
+                    "code"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "retryable"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Capability": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "research_generator",
+              "ai_evaluation",
+              "research_profile",
+              "research_recommendation",
+              "course_qa",
+              "code_execution"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unconfigured",
+              "configured_unverified",
+              "verified",
+              "failed"
+            ]
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "reason_code"
+        ],
+        "description": "运行能力状态，不直接映射task_run.status或profile_version.capability_status。无凭证为unconfigured；配置存在不能标verified。"
+      },
+      "Scope": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "org_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "course_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usergroup_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "student_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "course.create",
+              "course.edit",
+              "content.read",
+              "content.generate",
+              "content.edit",
+              "content.review",
+              "content.publish",
+              "task.manage",
+              "submission.grade",
+              "result.review",
+              "profile.read",
+              "intervention.write",
+              "evidence.read",
+              "export.read",
+              "access.manage",
+              "policy.manage",
+              "operations.manage",
+              "audit.metadata"
+            ]
+          }
+        },
+        "required": [
+          "org_id",
+          "course_id",
+          "usergroup_id",
+          "student_id",
+          "action"
+        ]
+      },
+      "Principal": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "org_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "user_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "human"
+            ]
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "disabled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role_views": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "student",
+                "teacher",
+                "administrator"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "org_id",
+          "user_id",
+          "kind",
+          "display_name",
+          "disabled_at",
+          "role_views"
+        ],
+        "description": "role_views仅由有效scope和本人收件人关系派生，切换视图不增加权限。"
+      },
+      "SessionView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "principal": {
+            "$ref": "#/components/schemas/Principal"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scope"
+            }
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Capability"
+            }
+          },
+          "csrf_mode": {
+            "type": "string",
+            "enum": [
+              "same_origin_enforced"
+            ]
+          },
+          "upstream_login_path": {
+            "const": "/api/v1/auth/login"
+          },
+          "upstream_logout_path": {
+            "const": "/api/v1/auth/logout"
+          },
+          "own_note_permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotePermissionView"
+            }
+          },
+          "own_note_permissions_etag": {
+            "type": "string",
+            "description": "服务端生成的聚合强ETag；原样用于If-Match。"
+          }
+        },
+        "required": [
+          "principal",
+          "scopes",
+          "capabilities",
+          "csrf_mode",
+          "upstream_login_path",
+          "upstream_logout_path",
+          "own_note_permissions",
+          "own_note_permissions_etag"
+        ],
+        "description": "仅LearnHouse真实人类会话可访问；不接受客户端actor/user/role身份声明。 own_note_permissions只含本人许可元数据，不返回笔记正文；其ETag用于本人授权命令。"
+      },
+      "PageInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "next_cursor",
+          "has_more"
+        ]
+      },
+      "CourseSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "course_uuid": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "published": {
+            "type": "boolean"
+          },
+          "class_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "allowed_actions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "course.create",
+                "course.edit",
+                "content.read",
+                "content.generate",
+                "content.edit",
+                "content.review",
+                "content.publish",
+                "task.manage",
+                "submission.grade",
+                "result.review",
+                "profile.read",
+                "intervention.write",
+                "evidence.read",
+                "export.read",
+                "access.manage",
+                "policy.manage",
+                "operations.manage",
+                "audit.metadata"
+              ]
+            }
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "id",
+          "course_uuid",
+          "org_id",
+          "name",
+          "published",
+          "class_ids",
+          "allowed_actions",
+          "etag"
+        ]
+      },
+      "CourseList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CourseSummary"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ]
+      },
+      "ClassMember": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "student_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "membership_active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "student_id",
+          "display_name",
+          "membership_active"
+        ],
+        "description": "学生视图只返回本人；教师仅必要授权班级成员；管理员仅基础元数据。"
+      },
+      "ClassView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "usergroup_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClassMember"
+            }
+          }
+        },
+        "required": [
+          "usergroup_id",
+          "name",
+          "members"
+        ]
+      },
+      "ActivityRef": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "activity_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "activity_uuid": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "published": {
+            "type": "boolean"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "activity_id",
+          "activity_uuid",
+          "name",
+          "order",
+          "published",
+          "resource_id"
+        ]
+      },
+      "ChapterView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chapter_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "activities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityRef"
+            }
+          }
+        },
+        "required": [
+          "chapter_id",
+          "name",
+          "order",
+          "activities"
+        ]
+      },
+      "SourceRef": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resource_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "locator": {
+            "type": "string"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "resource_version_id",
+          "locator",
+          "content_hash"
+        ]
+      },
+      "Choice": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ]
+      },
+      "Question": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "boolean",
+              "single_choice",
+              "short_answer",
+              "code_text"
+            ]
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            }
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "java",
+                  "plain_text"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maximum_score": {
+            "type": "number",
+            "minimum": 0
+          },
+          "knowledge_point_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "item_id",
+          "type",
+          "prompt",
+          "maximum_score",
+          "knowledge_point_ids"
+        ]
+      },
+      "ResourceContent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "body_text": {
+            "type": "string"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Question"
+            }
+          },
+          "knowledge_point_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "source_refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceRef"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "body_text",
+          "questions",
+          "knowledge_point_ids",
+          "source_refs"
+        ]
+      },
+      "AnswerKey": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "boolean",
+              "number"
+            ]
+          },
+          "rationale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "value",
+          "rationale"
+        ]
+      },
+      "RestrictedContent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerKey"
+            }
+          },
+          "grading_notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "answers",
+          "grading_notes"
+        ],
+        "description": "学生在答案门禁满足前不得收到此字段；不作为问答上下文回传。"
+      },
+      "ResourceVersionSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resource_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "course_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "processing_state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "failed"
+            ]
+          },
+          "generation_mode": {
+            "type": "string",
+            "enum": [
+              "upload",
+              "teacher",
+              "research_generator",
+              "rule_template"
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "real",
+              "demo",
+              "manual_example",
+              "simulated",
+              "external"
+            ]
+          },
+          "forced_review": {
+            "type": "boolean"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "validation_verdict": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "fail"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review_verdict": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "approve",
+                  "reject"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publication_action": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "publish",
+                  "withdraw"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "id",
+          "resource_id",
+          "course_id",
+          "version",
+          "processing_state",
+          "generation_mode",
+          "provenance",
+          "forced_review",
+          "content_hash",
+          "policy_version_id",
+          "validation_verdict",
+          "review_verdict",
+          "publication_action",
+          "etag"
+        ]
+      },
+      "CourseDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "course": {
+            "$ref": "#/components/schemas/CourseSummary"
+          },
+          "description": {
+            "type": "string"
+          },
+          "learnings": {
+            "type": "string"
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChapterView"
+            }
+          },
+          "classes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClassView"
+            }
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceVersionSummary"
+            }
+          },
+          "bindings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "binding_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "assignment_id": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "title": {
+                  "type": "string"
+                },
+                "due_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "assigned",
+                    "paused",
+                    "closed",
+                    "archived"
+                  ]
+                }
+              },
+              "required": [
+                "binding_id",
+                "assignment_id",
+                "title",
+                "due_at",
+                "status"
+              ]
+            }
+          },
+          "policy_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Capability"
+            }
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "course",
+          "description",
+          "learnings",
+          "chapters",
+          "classes",
+          "resources",
+          "bindings",
+          "policy_version_id",
+          "capabilities",
+          "etag"
+        ]
+      },
+      "ResourceView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "course_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "source_text",
+              "source_pdf",
+              "lesson",
+              "exercise"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersionSummary"
+          },
+          "content": {
+            "$ref": "#/components/schemas/ResourceContent"
+          },
+          "restricted_content": {
+            "$ref": "#/components/schemas/RestrictedContent"
+          },
+          "version_history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceVersionSummary"
+            }
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "check_kind": {
+                  "type": "string",
+                  "enum": [
+                    "deterministic",
+                    "human_review"
+                  ]
+                },
+                "verdict": {
+                  "type": "string",
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "approve",
+                    "reject"
+                  ]
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "id",
+                "check_kind",
+                "verdict",
+                "created_at"
+              ]
+            }
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "resource_id",
+          "course_id",
+          "title",
+          "kind",
+          "version",
+          "content",
+          "etag"
+        ],
+        "description": "学生只返回本人获发布范围的当前版本；version_history与checks仅编辑/审核者。restricted_content单独按P12鉴权，不存在时省略字段。"
+      },
+      "CourseCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "description": {
+            "type": "string"
+          },
+          "learnings": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "description": "创建者由会话确定，并成为仅该课程的负责人；org由会话组织上下文确定。"
+      },
+      "CoursePatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "learnings": {
+            "type": "string"
+          },
+          "chapter_order": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [],
+        "description": "仅修改授权课程元数据/编排与允许策略引用；全部chapter必须属于该course，不允许public或任意角色字段。"
+      },
+      "SourceTextCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "source_text"
+          },
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000000
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "knowledge_point_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "text",
+          "policy_version_id",
+          "knowledge_point_ids"
+        ]
+      },
+      "SourcePdfUpload": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "source_pdf"
+          },
+          "title": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string",
+            "format": "binary"
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "file",
+          "policy_version_id"
+        ],
+        "description": "服务端限制文件类型/大小，进入parse任务；不得以客户端解析结果跳过无文本PDF门禁。"
+      },
+      "ResourceVersionCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "content": {
+            "$ref": "#/components/schemas/ResourceContent"
+          },
+          "restricted_content": {
+            "$ref": "#/components/schemas/RestrictedContent"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "expected_version",
+          "policy_version_id",
+          "content",
+          "restricted_content",
+          "reason"
+        ],
+        "description": "只追加版本；previous_version_id、actor、provenance继承与哈希由服务端推导。已有forced_review不可被false覆盖。"
+      },
+      "GenerationRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ResearchGenerationRequest"
+          },
+          {
+            "$ref": "#/components/schemas/RuleGenerationRequest"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "mode",
+          "mapping": {
+            "research_generator": "#/components/schemas/ResearchGenerationRequest",
+            "rule_template": "#/components/schemas/RuleGenerationRequest"
+          }
+        }
+      },
+      "TaskRefs": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resource_version_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "evaluation_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "profile_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recommendation_version_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [],
+        "description": "仅对象编号，不含prompt、回答、学生作答或隐藏思维链。"
+      },
+      "TaskView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "org_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "course_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "parse",
+              "generate",
+              "validate",
+              "evaluate",
+              "profile_update",
+              "recommend",
+              "recompute",
+              "projection"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "execution_epoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attempt_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_attempts": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "budget_limit": {
+            "type": "number",
+            "minimum": 0
+          },
+          "budget_spent": {
+            "type": "number",
+            "minimum": 0
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result_refs": {
+            "$ref": "#/components/schemas/TaskRefs"
+          },
+          "capability_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "unconfigured",
+                  "configured_unverified",
+                  "verified",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "只表示该任务实际依赖的模型能力；parse/rule_template等不依赖模型时null，不能以verified冒充模型执行。"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          },
+          "run_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "preview",
+              "execute",
+              null
+            ],
+            "description": "研究任务为preview/execute，非研究任务null；DTO从冻结input_refs投影。"
+          },
+          "output_kind": {
+            "type": "string",
+            "enum": [
+              "none",
+              "preview_metadata",
+              "resource_candidate",
+              "evaluation_candidate",
+              "projection",
+              "recommendation"
+            ],
+            "description": "preview成功只能preview_metadata且无候选正文/ready标记。"
+          },
+          "can_cancel": {
+            "type": "boolean"
+          },
+          "can_retry": {
+            "type": "boolean"
+          },
+          "retry_block_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cancellation_scope": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "prevent_result_application",
+              null
+            ],
+            "description": "取消阻止迟到结果应用；当前研究adapter不支持强制终止已发请求或保证无费用。"
+          }
+        },
+        "required": [
+          "id",
+          "org_id",
+          "course_id",
+          "operation",
+          "status",
+          "execution_epoch",
+          "attempt_count",
+          "max_attempts",
+          "budget_limit",
+          "budget_spent",
+          "error_code",
+          "result_refs",
+          "capability_status",
+          "created_at",
+          "updated_at",
+          "etag",
+          "run_mode",
+          "output_kind",
+          "can_cancel",
+          "can_retry",
+          "retry_block_reason",
+          "cancellation_scope"
+        ],
+        "description": "capability_status是额外DTO字段；任务状态必须保持schema.sql枚举。管理读视图只含这些元数据。"
+      },
+      "ResourceAccepted": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resource_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "processing_state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "failed"
+            ]
+          },
+          "task": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "resource_id",
+          "resource_version_id",
+          "processing_state",
+          "task",
+          "etag"
+        ]
+      },
+      "TaskCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "type": "string",
+            "enum": [
+              "cancel",
+              "retry"
+            ]
+          },
+          "expected_execution_epoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "command",
+          "expected_execution_epoch",
+          "reason"
+        ],
+        "description": "研究适配器任务不支持retry；必须409 RESEARCH_RETRY_UNAVAILABLE。取消仅使产品不应用结果，不承诺研究进程/供应商请求已中止。"
+      },
+      "DeterministicCheckRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "check_kind": {
+            "const": "deterministic"
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "check_kind",
+          "policy_version_id"
+        ],
+        "description": "客户端不能提交pass结论；服务端固定校验器计算并写content_check。"
+      },
+      "HumanReviewRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "check_kind": {
+            "const": "human_review"
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "validation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "check_kind",
+          "policy_version_id",
+          "validation_id",
+          "verdict",
+          "reason"
+        ]
+      },
+      "CheckRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/DeterministicCheckRequest"
+          },
+          {
+            "$ref": "#/components/schemas/HumanReviewRequest"
+          }
+        ]
+      },
+      "CheckItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "passed",
+          "message"
+        ]
+      },
+      "CheckView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resource_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "check_kind": {
+            "type": "string",
+            "enum": [
+              "deterministic",
+              "human_review"
+            ]
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "fail",
+              "approve",
+              "reject"
+            ]
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckItem"
+            }
+          },
+          "checker_version": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "id",
+          "resource_version_id",
+          "policy_version_id",
+          "check_kind",
+          "verdict",
+          "checks",
+          "checker_version",
+          "reason",
+          "created_at",
+          "etag"
+        ]
+      },
+      "PublicationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "publish",
+              "withdraw"
+            ]
+          },
+          "usergroup_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "expected_event_no": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "previous_event_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "action",
+          "usergroup_id",
+          "expected_event_no",
+          "previous_event_id",
+          "validation_id",
+          "review_id",
+          "policy_version_id",
+          "reason"
+        ],
+        "description": "首次expected_event_no=0/previous_event_id=null；发布必须pass且forced_review要求approve；撤回不删证据。"
+      },
+      "PublicationView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resource_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "usergroup_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "event_no": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "previous_event_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "publish",
+              "withdraw"
+            ]
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "id",
+          "resource_version_id",
+          "usergroup_id",
+          "event_no",
+          "previous_event_id",
+          "action",
+          "policy_version_id",
+          "created_at",
+          "etag"
+        ]
+      },
+      "RubricCriterion": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "criterion_id": {
+            "type": "string"
+          },
+          "item_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "maximum_score": {
+            "type": "number",
+            "minimum": 0
+          },
+          "knowledge_point_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "criterion_id",
+          "item_id",
+          "description",
+          "maximum_score",
+          "knowledge_point_ids"
+        ]
+      },
+      "RubricInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "criteria": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RubricCriterion"
+            }
+          },
+          "maximum_score": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "criteria",
+          "maximum_score"
+        ],
+        "description": "布置命令可原子创建ea.rubric_version，family/version/hash由服务端生成；criteria需与冻结资源题号一致。"
+      },
+      "BindingCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "assignment_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "resource_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rubric_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "new_rubric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RubricInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "publication_event_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "usergroup_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "opens_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "max_attempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "answer_release": {
+            "type": "string",
+            "enum": [
+              "after_due",
+              "after_effective",
+              "never"
+            ]
+          },
+          "allow_review": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "assignment_id",
+          "title",
+          "description",
+          "resource_version_id",
+          "rubric_version_id",
+          "new_rubric",
+          "policy_version_id",
+          "publication_event_id",
+          "usergroup_id",
+          "opens_at",
+          "due_at",
+          "max_attempts",
+          "answer_release",
+          "allow_review"
+        ],
+        "description": "rubric_version_id/new_rubric恰一非null；assignment_id为null时同事务创建上游作业骨架。仅该班当前有效成员形成recipient快照，不能指定任意student_ids。"
+      },
+      "RecipientView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "binding_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "usergroup_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "attempt_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "can_start": {
+            "type": "boolean"
+          },
+          "blocking_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resubmission_grants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResubmissionGrantView"
+            }
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端生成的聚合强ETag；原样用于If-Match。"
+          }
+        },
+        "required": [
+          "id",
+          "binding_id",
+          "student_id",
+          "usergroup_id",
+          "attempt_count",
+          "can_start",
+          "blocking_reason",
+          "resubmission_grants",
+          "etag"
+        ]
+      },
+      "BindingView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "assignment_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "org_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "course_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "resource_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rubric_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "publication_event_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "usergroup_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "opens_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "max_attempts": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "answer_release": {
+            "type": "string",
+            "enum": [
+              "after_due",
+              "after_effective",
+              "never"
+            ]
+          },
+          "allow_review": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "assigned",
+              "paused",
+              "closed",
+              "archived"
+            ]
+          },
+          "recipient": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecipientView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "own_submission_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "grading_criteria": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RubricCriterion"
+            }
+          },
+          "answer_key": {
+            "$ref": "#/components/schemas/RestrictedContent"
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipientView"
+            },
+            "description": "仅具有task.manage/submission.grade的授权教师返回必要班级成员；学生完全省略此字段。"
+          }
+        },
+        "required": [
+          "id",
+          "assignment_id",
+          "org_id",
+          "course_id",
+          "version",
+          "title",
+          "resource_version_id",
+          "rubric_version_id",
+          "policy_version_id",
+          "publication_event_id",
+          "usergroup_id",
+          "opens_at",
+          "due_at",
+          "max_attempts",
+          "answer_release",
+          "allow_review",
+          "status",
+          "recipient",
+          "own_submission_ids",
+          "grading_criteria",
+          "etag"
+        ],
+        "description": "answer_key仅满足P12时出现；学生不看到其他recipient或未公开答案。"
+      },
+      "BindingList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BindingView"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ]
+      },
+      "BindingStateRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "assigned",
+              "paused",
+              "closed",
+              "archived"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "status",
+          "reason"
+        ],
+        "description": "不修改冻结题面/量规/策略；archived终态只读；重新开放仍不能绕过原有效窗。"
+      },
+      "AttemptStart": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "recipient_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resubmission_grant_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "recipient_id"
+        ],
+        "description": "student_id由会话确定；start_key取Idempotency-Key；教师与管理员不能代学生开私人草稿。"
+      },
+      "Answer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "boolean",
+              "number",
+              "null"
+            ]
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "java",
+              "plain_text"
+            ]
+          }
+        },
+        "required": [
+          "item_id",
+          "value"
+        ],
+        "description": "code_text只保存文本，禁止执行；item_id必须属于绑定版本。"
+      },
+      "AnswerSet": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Answer"
+            }
+          }
+        },
+        "required": [
+          "answers"
+        ]
+      },
+      "AttemptView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "binding_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recipient_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "attempt_no": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "resource_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rubric_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "submitted",
+              "abandoned"
+            ]
+          },
+          "draft": {
+            "$ref": "#/components/schemas/AnswerSet"
+          },
+          "draft_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "resubmission_grant_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "question_content": {
+            "$ref": "#/components/schemas/ResourceContent"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "id",
+          "binding_id",
+          "recipient_id",
+          "student_id",
+          "attempt_no",
+          "resource_version_id",
+          "rubric_version_id",
+          "status",
+          "draft",
+          "draft_revision",
+          "resubmission_grant_id",
+          "question_content",
+          "updated_at",
+          "etag"
+        ],
+        "description": "仅本人；question_content不含restricted_content。学生草稿不是教师可批阅数据。"
+      },
+      "DraftPut": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "draft": {
+            "$ref": "#/components/schemas/AnswerSet"
+          }
+        },
+        "required": [
+          "expected_version",
+          "draft"
+        ],
+        "description": "expected_version严格映射attempt.draft_revision，与If-Match同时满足。"
+      },
+      "SubmitRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "answer_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "expected_version",
+          "answer_hash"
+        ],
+        "description": "从锁定的已保存draft生成answer_snapshot；hash按规范化JSON计算，不从请求另收可绕过草稿的答案。"
+      },
+      "SubmissionReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "submission_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "receipt_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "real",
+              "demo",
+              "manual_example",
+              "simulated"
+            ]
+          },
+          "evaluation_state": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "needs_teacher",
+              "failed",
+              "effective"
+            ]
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "submission_id",
+          "attempt_id",
+          "receipt_id",
+          "student_id",
+          "accepted_at",
+          "provenance",
+          "evaluation_state",
+          "etag"
+        ],
+        "description": "evaluation_state是派生DTO，不是submission表字段；提交成功只证明回执，不宣称后续全部完成。"
+      },
+      "EvaluationView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "submission_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "rule",
+              "ai_suggestion",
+              "teacher"
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "scored",
+              "needs_review",
+              "tool_error"
+            ]
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maximum_score": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "item_scores": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "item_id": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "maximum_score": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "feedback": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "item_id",
+                "score",
+                "maximum_score",
+                "feedback"
+              ]
+            }
+          },
+          "feedback": {
+            "type": "string"
+          },
+          "producer_version": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "submission_id",
+          "source",
+          "outcome",
+          "score",
+          "maximum_score",
+          "item_scores",
+          "feedback",
+          "producer_version",
+          "created_at"
+        ],
+        "description": "outcome非scored时score必须null；ai_suggestion仅教师可见，待确认不更新画像。"
+      },
+      "GradeView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "submission_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "evaluation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "supersedes_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0
+          },
+          "maximum_score": {
+            "type": "number",
+            "minimum": 0
+          },
+          "judgment_source": {
+            "type": "string",
+            "enum": [
+              "rule",
+              "teacher"
+            ]
+          },
+          "effective_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "submission_id",
+          "evaluation_id",
+          "revision",
+          "supersedes_id",
+          "reason",
+          "score",
+          "maximum_score",
+          "judgment_source",
+          "effective_at"
+        ],
+        "description": "score/max/source是evaluation联查DTO；不是grade_revision新增数据库列。"
+      },
+      "ReviewView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "submission_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "grade_revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "request_text": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "retained",
+              "revised",
+              "withdrawn"
+            ]
+          },
+          "resolved_revision_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "id",
+          "submission_id",
+          "grade_revision_id",
+          "request_text",
+          "status",
+          "resolved_revision_id",
+          "resolution",
+          "resolved_at",
+          "etag"
+        ]
+      },
+      "SubmissionView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "receipt": {
+            "$ref": "#/components/schemas/SubmissionReceipt"
+          },
+          "binding_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "answer_snapshot": {
+            "$ref": "#/components/schemas/AnswerSet"
+          },
+          "resource_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rubric_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "effective_grade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradeView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "grade_history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GradeView"
+            }
+          },
+          "candidate_evaluations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvaluationView"
+            }
+          },
+          "reviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewView"
+            }
+          },
+          "pipeline": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "evaluation": {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "needs_teacher",
+                  "failed",
+                  "effective"
+                ]
+              },
+              "profile": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "running",
+                  "ready",
+                  "failed",
+                  "stale",
+                  "not_connected"
+                ]
+              },
+              "recommendation": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "running",
+                  "ready",
+                  "failed",
+                  "no_content",
+                  "not_connected"
+                ]
+              }
+            },
+            "required": [
+              "evaluation",
+              "profile",
+              "recommendation"
+            ]
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "receipt",
+          "binding_id",
+          "answer_snapshot",
+          "resource_version_id",
+          "rubric_version_id",
+          "effective_grade",
+          "grade_history",
+          "reviews",
+          "pipeline",
+          "etag"
+        ],
+        "description": "candidate_evaluations仅具有submission.grade且在授权班级的教师可读；学生只看本人有效结果/状态。"
+      },
+      "SubmissionList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "submission_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "student_id": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "accepted_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "effective_grade": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/GradeView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "pending_review": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "submission_id",
+                "student_id",
+                "accepted_at",
+                "effective_grade",
+                "pending_review"
+              ]
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ]
+      },
+      "TeacherEvaluationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "const": "teacher"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0
+          },
+          "maximum_score": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "item_scores": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "item_id": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "feedback": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "item_id",
+                "score",
+                "feedback"
+              ]
+            }
+          },
+          "feedback": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "based_on_ai_evaluation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "score",
+          "maximum_score",
+          "item_scores",
+          "feedback",
+          "reason",
+          "based_on_ai_evaluation_id"
+        ],
+        "description": "可无AI建议直接评分；服务端核对量规上限，拒绝越界。只有显式确认才创建teacher来源，不能把AI原行改来源。"
+      },
+      "AIEvaluationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "const": "ai_suggestion"
+          },
+          "budget_limit": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "source",
+          "budget_limit"
+        ],
+        "description": "只启动候选评估task，不接受客户端score/outcome/model结论；缺配置503。"
+      },
+      "EvaluationRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/TeacherEvaluationRequest"
+          },
+          {
+            "$ref": "#/components/schemas/AIEvaluationRequest"
+          }
+        ]
+      },
+      "GradeCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "evaluation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "supersedes_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "evaluation_id",
+          "expected_version",
+          "supersedes_id",
+          "reason"
+        ],
+        "description": "expected_version为当前grade_revision.revision，首个为0；浏览器仅可生效teacher评价，AI建议必须先转成明确teacher评价；rule自动生效是受限内部服务事务。"
+      },
+      "ReviewCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "grade_revision_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "request_text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "grade_revision_id",
+          "request_text"
+        ],
+        "description": "仅本人当前生效版本，绑定allow_review=true，同版本最多一open。"
+      },
+      "ReviewResolution": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "retain",
+              "revise"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "evaluation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_grade_revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "decision",
+          "reason",
+          "evaluation_id",
+          "expected_grade_revision"
+        ],
+        "description": "retain时evaluation_id=null；revise必须指向teacher新评价并原子追加grade_revision，再更新review为revised。"
+      },
+      "ResubmissionGrantCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "grant_kind": {
+            "type": "string",
+            "enum": [
+              "late",
+              "correction"
+            ]
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "allowed_attempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "grant_kind",
+          "starts_at",
+          "expires_at",
+          "allowed_attempts",
+          "reason"
+        ]
+      },
+      "ResubmissionGrantView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recipient_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "binding_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "grant_kind": {
+            "type": "string",
+            "enum": [
+              "late",
+              "correction"
+            ]
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "allowed_attempts": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "used_slots": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "id",
+          "recipient_id",
+          "binding_id",
+          "student_id",
+          "grant_kind",
+          "starts_at",
+          "expires_at",
+          "allowed_attempts",
+          "used_slots",
+          "revoked_at",
+          "etag"
+        ]
+      },
+      "EvidenceSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "knowledge_point_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "effective_grade",
+              "consented_note",
+              "observation"
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "real",
+              "demo",
+              "manual_example",
+              "simulated"
+            ]
+          },
+          "judgment_source": {
+            "type": "string",
+            "enum": [
+              "rule",
+              "model",
+              "teacher",
+              "self_report"
+            ]
+          },
+          "summary_text": {
+            "type": "string"
+          },
+          "grade_revision_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "content_access": {
+            "type": "string",
+            "enum": [
+              "allowed",
+              "restricted",
+              "unavailable"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "knowledge_point_id",
+          "source_type",
+          "provenance",
+          "judgment_source",
+          "summary_text",
+          "grade_revision_id",
+          "observed_at",
+          "content_access"
+        ],
+        "description": "摘要不能含私人笔记原文或未授权提交全文；content_access只是提示，取原文仍复查。"
+      },
+      "StateValue": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "good",
+              "bad",
+              "unknown",
+              "conflict"
+            ]
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "evidence_ids",
+          "reason"
+        ],
+        "description": "无有效证据为unknown；不输出伪掌握百分比。"
+      },
+      "ResearchField": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "not_connected",
+              "unvalidated",
+              "observed",
+              "estimated",
+              "conflict"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "method_version": {
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "source",
+          "method_version",
+          "summary"
+        ],
+        "description": "保留真实研究字段状态与来源；Good/Bad/Unknown为逐条观察，不能多数投票推导整体掌握。无正式聚合方法，StateValue保持unknown。"
+      },
+      "LearningStateView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "course_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "student_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "profile_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "method_kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "rule_statistics",
+                  "research_prototype"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capability_status": {
+            "type": "string",
+            "enum": [
+              "connected",
+              "not_connected",
+              "unvalidated"
+            ]
+          },
+          "runtime_capability_status": {
+            "type": "string",
+            "enum": [
+              "unconfigured",
+              "configured_unverified",
+              "verified",
+              "failed"
+            ]
+          },
+          "update_status": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "pending",
+              "running",
+              "ready",
+              "failed",
+              "stale"
+            ]
+          },
+          "states": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StateValue"
+            }
+          },
+          "research_fields": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResearchField"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSummary"
+            }
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          },
+          "trigger_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "grade_effective",
+              "grade_corrected",
+              "note_evidence",
+              "consent_revoked",
+              "rebuild",
+              null
+            ]
+          },
+          "trigger_event_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trigger_grade_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "course_id",
+          "student_id",
+          "profile_version_id",
+          "version",
+          "method_kind",
+          "capability_status",
+          "runtime_capability_status",
+          "update_status",
+          "states",
+          "research_fields",
+          "evidence",
+          "etag",
+          "trigger_type",
+          "trigger_event_key",
+          "trigger_grade_id"
+        ],
+        "description": "profile字段严格沿用ea.profile_version；runtime能力枚举另列，no profile返回version=0、unknown/空证据；rule_statistics不能标为研究掌握推断。 原始研究观察Good/Bad/Unknown不等于整体掌握状态；无正式聚合方法时states保持unknown，仅保留证据摘要。"
+      },
+      "EvidenceContent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "effective_grade",
+              "consented_note",
+              "observation"
+            ]
+          },
+          "submission_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content_text": {
+            "type": "string"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Answer"
+            }
+          },
+          "source_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "source_type",
+          "submission_id",
+          "note_id",
+          "content_text",
+          "answers",
+          "source_version_id",
+          "etag"
+        ],
+        "description": "只返回本次授权的原文部分；profile_use不授权teacher_read。无原始来源返回404，不伪造原文。"
+      },
+      "RecommendationItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "knowledge_point_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "evidence_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resource_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "binding_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recipient_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "rank",
+          "knowledge_point_id",
+          "evidence_id",
+          "resource_version_id",
+          "binding_id",
+          "recipient_id",
+          "reason"
+        ]
+      },
+      "RecommendationView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "course_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "student_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "profile_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "method_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "course_rule",
+              "research_B",
+              "none"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "no_content",
+              "pending",
+              "not_connected",
+              "failed",
+              "stale"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendationItem"
+            }
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "id",
+          "course_id",
+          "student_id",
+          "profile_version_id",
+          "method_version",
+          "strategy",
+          "state",
+          "reason",
+          "items",
+          "etag"
+        ],
+        "description": "state中的pending/not_connected/failed/stale为DTO任务投影，存储recommendation_version仅ready/no_content；实时再过滤撤回/无权资源，绝不替换已开始attempt。"
+      },
+      "InterventionCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "profile_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recommendation_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_binding_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "assign_next",
+              "adjust_next",
+              "record_support"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "support_note": {
+                "type": "string"
+              },
+              "future_task_note": {
+                "type": "string"
+              }
+            },
+            "required": []
+          }
+        },
+        "required": [
+          "profile_version_id",
+          "recommendation_version_id",
+          "target_binding_id",
+          "action",
+          "reason",
+          "details"
+        ]
+      },
+      "InterventionView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "course_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "student_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "profile_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "assign_next",
+              "adjust_next",
+              "record_support"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "id",
+          "course_id",
+          "student_id",
+          "profile_version_id",
+          "action",
+          "reason",
+          "created_at",
+          "etag"
+        ]
+      },
+      "GrantView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "principal_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "granted_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "approved_by": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "principal_id",
+          "scope",
+          "starts_at",
+          "expires_at",
+          "revoked_at",
+          "granted_by",
+          "approved_by",
+          "reason"
+        ]
+      },
+      "ScopeList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "principals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Principal"
+            }
+          },
+          "grants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GrantView"
+            }
+          },
+          "classes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClassView"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "principals",
+          "grants",
+          "classes",
+          "page",
+          "etag"
+        ],
+        "description": "基础身份/班级/授权元数据，不含课程或学生提交正文。"
+      },
+      "GrantCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "const": "grant"
+          },
+          "principal_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "course_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usergroup_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "student_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "course.create",
+              "course.edit",
+              "content.read",
+              "content.generate",
+              "content.edit",
+              "content.review",
+              "content.publish",
+              "task.manage",
+              "submission.grade",
+              "result.review",
+              "profile.read",
+              "intervention.write",
+              "evidence.read",
+              "export.read",
+              "access.manage",
+              "policy.manage",
+              "operations.manage",
+              "audit.metadata"
+            ]
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "command",
+          "principal_id",
+          "course_id",
+          "usergroup_id",
+          "student_id",
+          "action",
+          "starts_at",
+          "expires_at",
+          "reason"
+        ],
+        "description": "granted_by/approved_by由当前独立授权主体派生；不接受客户端approved_by。主体不得批准给自己的授权。"
+      },
+      "RevokeGrantCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "const": "revoke"
+          },
+          "grant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "command",
+          "grant_id",
+          "reason"
+        ]
+      },
+      "MembershipCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "const": "set_membership"
+          },
+          "course_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "usergroup_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "student_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "command",
+          "course_id",
+          "usergroup_id",
+          "student_id",
+          "active",
+          "reason"
+        ],
+        "description": "A03仅授权管理主体；同步失效读取/下载/未来任务，不物理删历史recipient或正式提交。"
+      },
+      "ScopeCommand": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/GrantCommand"
+          },
+          {
+            "$ref": "#/components/schemas/RevokeGrantCommand"
+          },
+          {
+            "$ref": "#/components/schemas/MembershipCommand"
+          }
+        ]
+      },
+      "PolicyRules": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "allowed_generation_modes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "research_generator",
+                "rule_template"
+              ]
+            }
+          },
+          "required_checks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "schema",
+                "source_ready",
+                "scope",
+                "answer_consistency",
+                "rubric_bounds",
+                "boolean_truth_table"
+              ]
+            }
+          },
+          "require_human_review": {
+            "type": "boolean"
+          },
+          "allow_rule_auto_publish": {
+            "type": "boolean"
+          },
+          "maximum_task_budget": {
+            "type": "number",
+            "minimum": 0
+          },
+          "maximum_task_attempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "allow_review": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "allowed_generation_modes",
+          "required_checks",
+          "require_human_review",
+          "allow_rule_auto_publish",
+          "maximum_task_budget",
+          "maximum_task_attempts",
+          "allow_review"
+        ],
+        "description": "课程规则只能收窄全局规则；布置时冻结，不追溯；forced_review不能因新策略关闭而清除。"
+      },
+      "PolicyCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "policy_type": {
+            "type": "string",
+            "enum": [
+              "global",
+              "course"
+            ]
+          },
+          "course_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "family_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "parent_policy_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rules": {
+            "$ref": "#/components/schemas/PolicyRules"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "policy_type",
+          "course_id",
+          "family_id",
+          "expected_version",
+          "parent_policy_id",
+          "rules",
+          "reason"
+        ]
+      },
+      "PolicyView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "org_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "course_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "family_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "policy_type": {
+            "type": "string",
+            "enum": [
+              "global",
+              "course"
+            ]
+          },
+          "parent_policy_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rules": {
+            "$ref": "#/components/schemas/PolicyRules"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "id",
+          "org_id",
+          "course_id",
+          "family_id",
+          "version",
+          "policy_type",
+          "parent_policy_id",
+          "rules",
+          "content_hash",
+          "created_at",
+          "etag"
+        ]
+      },
+      "PolicyList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PolicyView"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "etag"
+        ]
+      },
+      "OperationsView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Capability"
+            }
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "accounts": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "courses": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "queued_tasks": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "running_tasks": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "failed_tasks": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "accounts",
+              "courses",
+              "queued_tasks",
+              "running_tasks",
+              "failed_tasks"
+            ]
+          },
+          "budget": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "type": "number",
+                "minimum": 0
+              },
+              "spent": {
+                "type": "number",
+                "minimum": 0
+              },
+              "currency": {
+                "type": "string",
+                "enum": [
+                  "configured_unit",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "limit",
+              "spent",
+              "currency"
+            ]
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskView"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "capabilities",
+          "counts",
+          "budget",
+          "tasks",
+          "page",
+          "etag"
+        ],
+        "description": "不含凭证值、输入/输出正文、学生明细或所谓学习提升率；费用口径未知标unknown。"
+      },
+      "AuditRow": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "org_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "course_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "before_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason_code": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "denied",
+                  "failed"
+                ]
+              },
+              "operation": {
+                "type": "string"
+              },
+              "object_refs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "outcome"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "org_id",
+          "course_id",
+          "actor_id",
+          "action",
+          "target_type",
+          "target_id",
+          "request_id",
+          "task_id",
+          "before_version",
+          "after_version",
+          "reason_code",
+          "metadata",
+          "created_at"
+        ],
+        "description": "audit BIGINT对外十进制字符串，避免浏览器数值精度损失。metadata采用白名单，不返回数据库任意JSON。"
+      },
+      "AuditList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditRow"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ]
+      },
+      "NotePermissionCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "type": "string",
+            "enum": [
+              "grant",
+              "revoke"
+            ]
+          },
+          "permission_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "profile_use",
+              "teacher_read"
+            ]
+          },
+          "grantee_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "command",
+          "permission_id",
+          "purpose",
+          "grantee_id",
+          "expected_version",
+          "expires_at"
+        ],
+        "description": "仅笔记本人；grant时grantee依purpose约束；revoke必须引用本人permission；expected_version为consent_revision当前头。若只分享部分，先创建含指定片段的新私人note，再授权，不把整篇笔记暗中共享。 profile_use要求grantee_id=null，teacher_read要求非null。已到期未撤销旧行仍占active唯一槽，事务先revoked_at=expires_at再写新consent_revision。"
+      },
+      "NotePermissionView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "note_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "student_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "course_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "profile_use",
+              "teacher_read"
+            ]
+          },
+          "grantee_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "consent_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "id",
+          "note_id",
+          "student_id",
+          "course_id",
+          "purpose",
+          "grantee_id",
+          "consent_revision",
+          "expires_at",
+          "revoked_at",
+          "etag"
+        ]
+      },
+      "PrincipalCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "type": "string",
+            "enum": [
+              "disable_v2",
+              "enable_v2",
+              "revoke_sessions"
+            ]
+          },
+          "principal_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "command",
+          "principal_id",
+          "reason"
+        ],
+        "description": "只管理当前org的ea.principal和会话；disable_v2必须阻断V2资源的原上游访问。不是全平台User.is_active字段（上游无此字段），不擅自停用其他组织身份。"
+      },
+      "CommandResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "operation": {
+            "type": "string"
+          },
+          "result_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "etag": {
+            "type": "string",
+            "description": "服务端强ETag；客户端原样用于If-Match，不解析为数据库version。"
+          }
+        },
+        "required": [
+          "operation",
+          "result_ids",
+          "request_id",
+          "etag"
+        ]
+      },
+      "ResearchGenerationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "knowledge_point_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "mode": {
+            "const": "research_generator"
+          },
+          "requirement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "budget_limit": {
+            "type": "number",
+            "minimum": 0
+          },
+          "max_attempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "target_student_id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "真实存在且在当前课程授权班级中的public.user.id；服务端稳定映射worker student_id，不得用教师ID或假学生替代。"
+          },
+          "run_mode": {
+            "type": "string",
+            "enum": [
+              "preview",
+              "execute"
+            ],
+            "default": "preview",
+            "description": "默认preview且不读取模型配置；execute另需服务端受信PaidAuthorization。浏览器不能上传授权对象或付费同意布尔值。"
+          },
+          "max_calls": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8,
+            "description": "研究模型请求次数总上限，含逻辑步骤重试；与task_run.max_attempts(队列次数)和budget_limit(金额/配置单位)不同。"
+          }
+        },
+        "required": [
+          "source_version_id",
+          "policy_version_id",
+          "knowledge_point_ids",
+          "mode",
+          "requirement",
+          "budget_limit",
+          "max_attempts",
+          "target_student_id",
+          "max_calls"
+        ],
+        "description": "Snapshot只由服务端构造：知识点UUID转固定catalog/code/version；真实目标学生、原始证据来源和输入hash冻结。preview成功仅预览，不返回生成候选。execute须当前具体授权、配置与预算，不能用预览job/key升级执行。"
+      },
+      "RuleGenerationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "policy_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "knowledge_point_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "mode": {
+            "const": "rule_template"
+          },
+          "requirement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "budget_limit": {
+            "type": "number",
+            "minimum": 0
+          },
+          "max_attempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "source_version_id",
+          "policy_version_id",
+          "knowledge_point_ids",
+          "mode",
+          "requirement",
+          "budget_limit",
+          "max_attempts"
+        ],
+        "description": "固定Java布尔表达式判断题模板；无target_student_id、max_calls或付费授权字段，不虚构学生、不调用模型、不执行学生代码。"
+      },
+      "SharedNoteView": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "note_id",
+          "note_uuid",
+          "course_id",
+          "student_id",
+          "permission_id",
+          "consent_revision",
+          "content_text",
+          "etag"
+        ],
+        "properties": {
+          "note_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "note_uuid": {
+            "type": "string"
+          },
+          "course_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "student_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "permission_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "consent_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "content_text": {
+            "type": "string"
+          },
+          "etag": {
+            "type": "string"
+          }
+        },
+        "description": "学生明确teacher_read分享的note正文；不需要profile_use、不需要先生成evidence_event或profile_version。仅读授权的笔记/片段副本，不扩展到其他私人笔记。"
+      }
+    }
+  }
+}

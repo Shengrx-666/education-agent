@@ -1,0 +1,185 @@
+'use client'
+import React from 'react'
+import { useTranslation } from 'react-i18next'
+import { useQuery } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/query/keys'
+import { getAPIUrl } from '@services/config/config'
+import { apiFetch } from '@services/utils/ts/requests'
+import { useAuth } from '@components/Contexts/AuthContext'
+import EditorSkeleton from './EditorSkeleton'
+import EditorWrapper from './EditorWrapper'
+import MarkdownActivity from '@components/Objects/Activities/Markdown/MarkdownActivity'
+import EmbedActivity from '@components/Objects/Activities/Embed/EmbedActivity'
+import ResourceActivity from '@components/Objects/Activities/Resource/ResourceActivity'
+import OnboardingTracker from '@components/Dashboard/Onboarding/OnboardingTracker'
+import { useRegisterAtlasPageContext } from '@ee/components/Atlas/AtlasMiniContext'
+import TranslationGate, { useEditorLocaleParam } from './Translation/TranslationGate'
+import { withNextParam } from '@/lib/auth/nextParam'
+import { EDITOR_READY_FALLBACK_MS, LOADER_STALL_MS, editorLoaderView } from './editorLoaderState'
+
+interface EditorLoaderProps {
+  courseid: string
+  activityuuid: string
+}
+
+/**
+ * Single entry point for the editor page. Fetches the editor's full bootstrap
+ * payload (activity + slim course + org with resolved features) in one request.
+ *
+ * Uses `useAuth().accessToken` rather than `useSession().data.tokens` so the
+ * bootstrap fetch can race the `/users/session` call in parallel: the bare
+ * access token is set the moment `/api/auth/refresh` resolves, while
+ * `session.data` only populates after the subsequent `/users/session` call.
+ */
+export default function EditorLoader({ courseid: _courseid, activityuuid }: EditorLoaderProps) {
+  const { t } = useTranslation()
+  const { accessToken: access_token, status: authStatus } = useAuth()
+  const [editorReady, setEditorReady] = React.useState(false)
+  const markEditorReady = React.useCallback(() => setEditorReady(true), [])
+  // Set when the data has not arrived after LOADER_STALL_MS (see editorLoaderState)
+  const [stalled, setStalled] = React.useState(false)
+  // `?lang=fr`: edit that translation of the page (Translation/TranslationGate)
+  const locale = useEditorLocaleParam()
+
+  const { data: bootstrap, error: bootstrapError } = useQuery({
+    queryKey: queryKeys.activity.editorBootstrap(activityuuid),
+    queryFn: () => apiFetch(`${getAPIUrl()}activities/activity_${activityuuid}/editor-bootstrap`, access_token ?? undefined),
+    enabled: !!access_token && !!activityuuid,
+    staleTime: 60_000,
+    // The editor owns the content once open (live room or its own saves): a
+    // background refetch would reset it, or unmount it on a transient error
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+
+  const courseInfo = bootstrap?.course
+  const activity = bootstrap?.activity
+  const org = bootstrap?.org
+  const dataReady = Boolean(bootstrap)
+
+  // Never sit on the skeleton for good: offer a reload when the data does not
+  // come, and uncover a mounted editor that never reported ready.
+  React.useEffect(() => {
+    if (dataReady) return
+    const id = setTimeout(() => setStalled(true), LOADER_STALL_MS)
+    return () => clearTimeout(id)
+  }, [dataReady])
+  React.useEffect(() => {
+    if (!dataReady || editorReady) return
+    const id = setTimeout(markEditorReady, EDITOR_READY_FALLBACK_MS)
+    return () => clearTimeout(id)
+  }, [dataReady, editorReady, markEditorReady])
+  const view = editorLoaderView({
+    hasData: dataReady,
+    hasError: !!bootstrapError,
+    hasToken: !!access_token,
+    authStatus,
+    stalled,
+  })
+
+  // Tell Atlas the user is editing this specific activity. Both course
+  // AND activity context flow to the backend, so terse messages like
+  // "translate this" / "make it shorter" resolve to the focused activity
+  // without the agent having to ask which one. Cleared automatically on
+  // unmount (navigating away drops both).
+  useRegisterAtlasPageContext(
+    activity?.activity_uuid && courseInfo?.course_uuid
+      ? {
+          course_uuid: courseInfo.course_uuid,
+          course_name: courseInfo.name,
+          activity_uuid: activity.activity_uuid,
+          activity_name: activity.name,
+        }
+      : null,
+  )
+
+  // Only when nothing loaded: a failed background refetch must not unmount an open editor
+  if (view === 'error' || view === 'stalled' || view === 'signed_out') {
+    const message =
+      view === 'signed_out'
+        ? t('editor.loader.signed_out', 'Your session could not be restored. Sign in again to edit this activity.')
+        : view === 'stalled'
+          ? t('editor.loader.stalled', 'The editor is taking too long to load.')
+          : t('editor.loader.failed')
+    return (
+      <div data-testid="editor-loader-failed" data-view={view} className="flex flex-col items-center justify-center h-64 gap-3 text-gray-500">
+        <p className="text-sm">{message}</p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => window.location.reload()}
+            className="text-sm text-indigo-600 hover:underline"
+          >
+            {t('editor.loader.refresh')}
+          </button>
+          {view === 'signed_out' && (
+            <a
+              href={withNextParam('/login', typeof window !== 'undefined' ? window.location.pathname + window.location.search : null)}
+              className="text-sm text-indigo-600 hover:underline"
+            >
+              {t('editor.loader.sign_in', 'Sign in')}
+            </a>
+          )}
+        </div>
+      </div>
+    )
+  }
+  const isMarkdownActivity = activity?.activity_sub_type === 'SUBTYPE_DYNAMIC_MARKDOWN'
+  const isEmbedActivity = activity?.activity_sub_type === 'SUBTYPE_DYNAMIC_EMBED'
+  const isResourceActivity = activity?.activity_sub_type === 'SUBTYPE_DYNAMIC_RESOURCE'
+
+  if (isMarkdownActivity && dataReady) {
+    return <MarkdownActivity activity={activity} editable />
+  }
+
+  if (isEmbedActivity && dataReady) {
+    return <EmbedActivity activity={activity} editable />
+  }
+
+  if (isResourceActivity && dataReady) {
+    // Resource activities are configured on creation; the editor shows a preview
+    // of the embedded resource (change it by re-adding the activity).
+    return <ResourceActivity activity={activity} orgslug={org?.slug || ''} />
+  }
+
+  return (
+    <div className="relative">
+      {/* Skeleton: fades out when editor is ready */}
+      <div
+        style={{
+          opacity: editorReady ? 0 : 1,
+          transition: 'opacity 300ms ease-out',
+          pointerEvents: editorReady ? 'none' : 'auto',
+          position: editorReady ? 'fixed' : 'relative',
+          inset: 0,
+          zIndex: editorReady ? 50 : 'auto',
+        }}
+      >
+        <EditorSkeleton />
+      </div>
+
+      {/* Editor: mounts when data ready, fades in when TipTap initializes */}
+      {dataReady && (
+        <div
+          style={{
+            opacity: editorReady ? 1 : 0,
+            transition: 'opacity 300ms ease-out',
+          }}
+        >
+          <TranslationGate locale={locale} activity={activity} course={courseInfo} onReady={markEditorReady}>
+            {(translation) => (
+              <EditorWrapper
+                key={locale || 'source'}
+                org={org}
+                course={courseInfo}
+                activity={translation?.activity ?? activity}
+                content={translation ? translation.content : activity.content}
+                onEditorReady={markEditorReady}
+              />
+            )}
+          </TranslationGate>
+        </div>
+      )}
+      <OnboardingTracker />
+    </div>
+  )
+}

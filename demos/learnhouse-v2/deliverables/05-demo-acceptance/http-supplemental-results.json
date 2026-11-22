@@ -1,0 +1,790 @@
+{
+  "run_id": "20261120T040307Z-cbbe446d",
+  "timestamp": "2026-11-20T04:03:17.279374+00:00",
+  "base_url": "http://127.0.0.1:8138",
+  "provenance": "demo",
+  "authentication": "real upstream cookie login",
+  "external_model_calls": 0,
+  "student_code_executions": 0,
+  "passed": 74,
+  "failed": 0,
+  "completed": true,
+  "checks": [
+    {
+      "name": "real login student_a",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "real login student_b",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "real login teacher_a",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "real login teacher_b",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "real login admin",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "read /admin/policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "read /resources/a10da53a-e9a4-53ef-9683-1c82d634fddf",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/resources/a10da53a-e9a4-53ef-9683-1c82d634fddf"
+    },
+    {
+      "name": "resource rejects cross-course source reference",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "POST",
+      "path": "/resources/a10da53a-e9a4-53ef-9683-1c82d634fddf/versions"
+    },
+    {
+      "name": "resource rejects source hash mismatch",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "SOURCE_HASH_MISMATCH",
+      "method": "POST",
+      "path": "/resources/a10da53a-e9a4-53ef-9683-1c82d634fddf/versions"
+    },
+    {
+      "name": "resource rejects string boolean answer key",
+      "passed": true,
+      "status": 422,
+      "expected_status": [
+        422
+      ],
+      "error_code": "INVALID_ANSWER_KEY",
+      "method": "POST",
+      "path": "/resources/a10da53a-e9a4-53ef-9683-1c82d634fddf/versions"
+    },
+    {
+      "name": "resource rejects answer absent from choices",
+      "passed": true,
+      "status": 422,
+      "expected_status": [
+        422
+      ],
+      "error_code": "INVALID_ANSWER_KEY",
+      "method": "POST",
+      "path": "/resources/a10da53a-e9a4-53ef-9683-1c82d634fddf/versions"
+    },
+    {
+      "name": "read /courses/1",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "research generation fails closed before model",
+      "passed": true,
+      "status": 503,
+      "expected_status": [
+        503
+      ],
+      "error_code": "RESEARCH_NOT_CONNECTED",
+      "method": "POST",
+      "path": "/courses/1/generation-runs"
+    },
+    {
+      "name": "deterministic template generation",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/courses/1/generation-runs"
+    },
+    {
+      "name": "rule template completes without model",
+      "passed": true
+    },
+    {
+      "name": "read /resources/b8679622-1875-4837-a0a1-2628feba225e",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/resources/b8679622-1875-4837-a0a1-2628feba225e"
+    },
+    {
+      "name": "generated resource labelled demo rules",
+      "passed": true
+    },
+    {
+      "name": "server deterministic validation",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/resource-versions/84b4eed0-fcd3-412e-aed5-5da332e01ab9/checks"
+    },
+    {
+      "name": "generated rule content passes validation",
+      "passed": true
+    },
+    {
+      "name": "current review policy blocks unreviewed rule publication",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "HUMAN_REVIEW_REQUIRED",
+      "method": "POST",
+      "path": "/resource-versions/84b4eed0-fcd3-412e-aed5-5da332e01ab9/publication-events"
+    },
+    {
+      "name": "teacher approves rule material under review policy",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/resource-versions/84b4eed0-fcd3-412e-aed5-5da332e01ab9/checks"
+    },
+    {
+      "name": "publish validated and reviewed rule content",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/resource-versions/84b4eed0-fcd3-412e-aed5-5da332e01ab9/publication-events"
+    },
+    {
+      "name": "read /courses/1",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "create rule assignment",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/courses/1/bindings"
+    },
+    {
+      "name": "read /bindings/3706cbab-6229-49b2-8f97-70a29f400e01",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/bindings/3706cbab-6229-49b2-8f97-70a29f400e01"
+    },
+    {
+      "name": "student starts rule attempt",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/bindings/3706cbab-6229-49b2-8f97-70a29f400e01/attempts"
+    },
+    {
+      "name": "save rule answers",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "PUT",
+      "path": "/attempts/aacdbe65-f2b3-4f1a-a8c1-8c0fc154e803/draft"
+    },
+    {
+      "name": "submit rule answers",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/attempts/aacdbe65-f2b3-4f1a-a8c1-8c0fc154e803/submissions"
+    },
+    {
+      "name": "read /submissions/c9ed77ef-e9c9-416c-8300-cdf062cbab59",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/submissions/c9ed77ef-e9c9-416c-8300-cdf062cbab59"
+    },
+    {
+      "name": "objective answers automatically get rule grade",
+      "passed": true
+    },
+    {
+      "name": "rule submission provenance remains demo",
+      "passed": true
+    },
+    {
+      "name": "read /admin/scopes",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/scopes"
+    },
+    {
+      "name": "administrator cannot grant own teaching access",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SELF_ESCALATION_DENIED",
+      "method": "POST",
+      "path": "/admin/scopes/commands"
+    },
+    {
+      "name": "administrator grants temporary course reading",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/scopes/commands"
+    },
+    {
+      "name": "stale administrative scope update rejected",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "VERSION_CONFLICT",
+      "method": "POST",
+      "path": "/admin/scopes/commands"
+    },
+    {
+      "name": "read /admin/scopes",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/scopes"
+    },
+    {
+      "name": "administrator grants temporary content editing",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/scopes/commands"
+    },
+    {
+      "name": "existing teacher cookie observes live grant",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "temporarily authorized teacher can create source",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/courses/1/resources"
+    },
+    {
+      "name": "read /admin/scopes",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/scopes"
+    },
+    {
+      "name": "administrator revokes temporary teaching grant",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/scopes/commands"
+    },
+    {
+      "name": "read /admin/scopes",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/scopes"
+    },
+    {
+      "name": "administrator revokes temporary teaching grant",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/scopes/commands"
+    },
+    {
+      "name": "old teacher cookie loses revoked course immediately",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "revoked teacher cannot replay successful write",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "POST",
+      "path": "/courses/1/resources"
+    },
+    {
+      "name": "read /admin/scopes",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/scopes"
+    },
+    {
+      "name": "administrator cannot disable own principal",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SELF_ESCALATION_DENIED",
+      "method": "POST",
+      "path": "/admin/principals/commands"
+    },
+    {
+      "name": "administrator disables student B",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/principals/commands"
+    },
+    {
+      "name": "disabled account existing session rejected",
+      "passed": true,
+      "status": 401,
+      "expected_status": [
+        401,
+        403
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "principal command rejects stale administrative version",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "VERSION_CONFLICT",
+      "method": "POST",
+      "path": "/admin/principals/commands"
+    },
+    {
+      "name": "read /admin/scopes",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/scopes"
+    },
+    {
+      "name": "administrator re-enables student B",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/principals/commands"
+    },
+    {
+      "name": "re-enable does not restore old session",
+      "passed": true,
+      "status": 401,
+      "expected_status": [
+        401
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "real login student_b",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "re-enabled student can obtain fresh session",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "read /admin/scopes",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/scopes"
+    },
+    {
+      "name": "administrator revokes active student B sessions",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/principals/commands"
+    },
+    {
+      "name": "revoked cookie immediately rejected",
+      "passed": true,
+      "status": 401,
+      "expected_status": [
+        401
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "real login student_b",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "student B fresh login restored after revocation",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "read /courses",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses"
+    },
+    {
+      "name": "teacher B ends with original course scope",
+      "passed": true
+    },
+    {
+      "name": "read /admin/policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "course policy cannot widen parent budget",
+      "passed": true,
+      "status": 422,
+      "expected_status": [
+        422
+      ],
+      "error_code": "POLICY_CANNOT_WIDEN_PARENT",
+      "method": "POST",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "course policy cannot remove parent review gate",
+      "passed": true,
+      "status": 422,
+      "expected_status": [
+        422
+      ],
+      "error_code": "POLICY_CANNOT_WIDEN_PARENT",
+      "method": "POST",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "administrator appends stricter course policy version",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "stale policy list version rejected",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "VERSION_CONFLICT",
+      "method": "POST",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "read /courses/2",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/2"
+    },
+    {
+      "name": "business execution honors disabled generation mode",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403,
+        409,
+        422
+      ],
+      "error_code": "GENERATION_MODE_DISABLED",
+      "method": "POST",
+      "path": "/courses/2/generation-runs"
+    },
+    {
+      "name": "new command cannot bypass current policy using old version",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "POLICY_VERSION_CONFLICT",
+      "method": "POST",
+      "path": "/courses/2/generation-runs"
+    },
+    {
+      "name": "read /admin/policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "restore course policy through append-only version",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "read /admin/policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "policy history retains original restricted and restored versions",
+      "passed": true
+    }
+  ],
+  "created_objects": {
+    "current_global_policy_id": "9cbc879f-1916-4a21-9b43-4911c0bfbcf5",
+    "current_course_policy_1": "5778edc7-f8b4-466c-8bcd-2bd65903d6dc",
+    "current_course_policy_2": "1f04c42d-36b1-4f86-a143-2be16c22174b",
+    "rule_task_id": "4e860d5a-934f-45db-a7b3-54c5d82802e4",
+    "rule_binding_id": "3706cbab-6229-49b2-8f97-70a29f400e01",
+    "rule_submission_id": "c9ed77ef-e9c9-416c-8300-cdf062cbab59"
+  }
+}

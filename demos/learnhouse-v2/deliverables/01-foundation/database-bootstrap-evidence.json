@@ -1,0 +1,1 @@
+{"public_table_count" : 106, "extensions" : [{"name" : "plpgsql", "version" : "1.0"}, {"name" : "vector", "version" : "0.8.1"}], "alembic_heads" : ["d8i2c3o4p5y6"]}

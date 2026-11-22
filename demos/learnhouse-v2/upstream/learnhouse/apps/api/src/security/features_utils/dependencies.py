@@ -1,0 +1,291 @@
+"""
+FastAPI dependencies for feature flag checks and admin authorization.
+
+These dependencies can be added to routers or individual endpoints
+to check if features are enabled before processing requests.
+"""
+from fastapi import Depends, HTTPException, Path, Request
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+from src.core.events.database import get_db_session
+from src.db.organizations import Organization
+from src.db.courses.courses import Course
+from src.db.user_organizations import UserOrganization
+from src.db.users import AnonymousUser, APITokenUser, PublicUser
+from src.security.auth import get_current_user, resolve_acting_user_id
+from src.security.rbac.constants import ADMIN_ROLE_ID
+from typing import Literal
+
+FeatureName = Literal[
+    "courses",
+    "folders",
+    "communities",
+    "podcasts",
+    "boards",
+    "playgrounds",
+    "ai",
+    "payments",
+    "usergroups",
+]
+
+
+# ============================================================================
+# Admin authorization dependency
+# ============================================================================
+
+async def require_org_admin(
+    org_id: int = Path(..., description="Organization ID"),
+    current_user: PublicUser | AnonymousUser | APITokenUser = Depends(get_current_user),
+    db_session: AsyncSession = Depends(get_db_session),
+) -> bool:
+    """
+    Dependency that verifies the current user is an admin (role_id=1)
+    for the specified organization.
+
+    Use this at the router level for endpoints that modify org configuration.
+
+    Raises:
+        HTTPException 401: If user is anonymous
+        HTTPException 403: If user is not an admin for this org
+        HTTPException 404: If organization not found
+    """
+    # Check for anonymous user
+    if isinstance(current_user, AnonymousUser):
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required to perform this action",
+        )
+
+    # Verify organization exists
+    statement = select(Organization).where(Organization.id == org_id)
+    org = (await db_session.execute(statement)).scalars().first()
+
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    acting_user_id = resolve_acting_user_id(current_user)
+
+    # Backoffice bypass
+    from src.security.backoffice import is_user_backoffice_staff
+    if await is_user_backoffice_staff(acting_user_id, db_session):
+        return True
+
+    # Check if user is admin in this organization
+    statement = (
+        select(UserOrganization)
+        .where(UserOrganization.user_id == acting_user_id)
+        .where(UserOrganization.org_id == org_id)
+        .where(UserOrganization.role_id == ADMIN_ROLE_ID)
+    )
+
+    user_org = (await db_session.execute(statement)).scalars().first()
+
+    if not user_org:
+        raise HTTPException(
+            status_code=403,
+            detail="Only organization admins can enable or disable features",
+        )
+
+    return True
+
+
+async def _check_feature_enabled(
+    feature: FeatureName,
+    org_id: int,
+    db_session: AsyncSession,
+) -> bool:
+    """
+    Internal helper to check if a feature is enabled for an organization.
+    Uses resolve_feature() for unified 4-layer resolution.
+
+    Returns:
+        True if enabled
+
+    Raises:
+        HTTPException 403 if feature is disabled
+    """
+    from src.security.features_utils.resolve import resolve_feature
+
+    from src.services.orgs.org_config_lookup import get_session_org_config
+
+    # Shared with the MFA and auth-method gates later in the request.
+    org_config = await get_session_org_config(db_session, org_id)
+
+    if org_config is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Organization has no config",
+        )
+
+    resolved = resolve_feature(feature, org_config.config or {}, org_id)
+
+    if not resolved["enabled"]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"{feature.capitalize()} feature is not enabled for this organization",
+        )
+
+    return True
+
+
+# ============================================================================
+# Dependencies for endpoints with org_id as path/query parameter
+# ============================================================================
+
+async def require_courses_feature_by_org_id(
+    org_id: int,
+    db_session: AsyncSession = Depends(get_db_session),
+) -> bool:
+    """
+    Dependency that checks if courses feature is enabled.
+    Use for endpoints that have org_id as a direct parameter.
+    """
+    return await _check_feature_enabled("courses", org_id, db_session)
+
+
+# ============================================================================
+# Dependencies for endpoints with org_slug as path parameter
+# ============================================================================
+
+async def require_courses_feature_by_org_slug(
+    org_slug: str = Path(...),
+    db_session: AsyncSession = Depends(get_db_session),
+) -> bool:
+    """
+    Dependency that checks if courses feature is enabled.
+    Use for endpoints that have org_slug as a path parameter.
+    """
+    statement = select(Organization).where(Organization.slug == org_slug)
+    org = (await db_session.execute(statement)).scalars().first()
+
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    return await _check_feature_enabled("courses", org.id, db_session)
+
+
+# ============================================================================
+# Dependencies for endpoints with course_uuid as path parameter
+# ============================================================================
+
+async def require_courses_feature_by_course_uuid(
+    course_uuid: str = Path(...),
+    db_session: AsyncSession = Depends(get_db_session),
+) -> bool:
+    """
+    Dependency that checks if courses feature is enabled.
+    Use for endpoints that have course_uuid as a path parameter.
+    """
+    statement = select(Course).where(Course.course_uuid == course_uuid)
+    course = (await db_session.execute(statement)).scalars().first()
+
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    return await _check_feature_enabled("courses", course.org_id, db_session)
+
+
+# ============================================================================
+# Dependencies for endpoints with activity_uuid as path parameter
+# ============================================================================
+
+async def require_courses_feature_by_activity_uuid(
+    activity_uuid: str = Path(...),
+    db_session: AsyncSession = Depends(get_db_session),
+) -> bool:
+    """
+    Dependency that checks if courses feature is enabled.
+    Use for endpoints that have activity_uuid as a path parameter.
+    """
+    from src.db.courses.activities import Activity
+
+    statement = select(Activity).where(Activity.activity_uuid == activity_uuid)
+    activity = (await db_session.execute(statement)).scalars().first()
+
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    statement = select(Course).where(Course.id == activity.course_id)
+    course = (await db_session.execute(statement)).scalars().first()
+
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    return await _check_feature_enabled("courses", course.org_id, db_session)
+
+
+# ============================================================================
+# Router-level dependencies (auto-detect parameter type)
+# ============================================================================
+
+async def require_courses_feature(
+    request: Request,
+    db_session: AsyncSession = Depends(get_db_session),
+) -> bool:
+    """
+    Router-level dependency that auto-detects the parameter type and checks
+    if the courses feature is enabled.
+
+    Checks in order: course_uuid, activity_uuid, org_slug, org_id
+    If none found, allows the request (for endpoints that don't need the check).
+    """
+    path_params = request.path_params
+
+    # Try course_uuid first
+    if "course_uuid" in path_params:
+        # Only the org is needed here; the endpoint loads the course itself.
+        # The org's config comes along: the feature check reads it next.
+        from src.db.organization_config import OrganizationConfig
+        from src.services.orgs.org_config_lookup import remember_org_config
+
+        course_uuid = path_params["course_uuid"]
+        statement = (
+            select(Course.org_id, OrganizationConfig)
+            .outerjoin(OrganizationConfig, OrganizationConfig.org_id == Course.org_id)  # type: ignore[arg-type]
+            .where(Course.course_uuid == course_uuid)
+        )
+        row = (await db_session.execute(statement)).first()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Course not found")
+        course_org_id, org_config = row
+        remember_org_config(db_session, course_org_id, org_config)
+        return await _check_feature_enabled("courses", course_org_id, db_session)
+
+    # Try activity_uuid
+    if "activity_uuid" in path_params:
+        from src.db.courses.activities import Activity
+        # One query for both lookups; the outer join tells a missing course
+        # apart from a missing activity.
+        activity_uuid = path_params["activity_uuid"]
+        statement = (
+            select(Activity.id, Course.org_id)
+            .outerjoin(Course, Course.id == Activity.course_id)
+            .where(Activity.activity_uuid == activity_uuid)
+        )
+        row = (await db_session.execute(statement)).first()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Activity not found")
+        if row[1] is None:
+            raise HTTPException(status_code=404, detail="Course not found")
+        return await _check_feature_enabled("courses", row[1], db_session)
+
+    # Try org_slug
+    if "org_slug" in path_params:
+        org_slug = path_params["org_slug"]
+        statement = select(Organization.id).where(Organization.slug == org_slug)
+        slug_org_id = (await db_session.execute(statement)).scalars().first()
+        if slug_org_id is None:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        return await _check_feature_enabled("courses", slug_org_id, db_session)
+
+    # Try org_id
+    if "org_id" in path_params:
+        try:
+            org_id = int(path_params["org_id"])
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Invalid org_id format")
+        return await _check_feature_enabled("courses", org_id, db_session)
+
+    # No relevant parameter found, allow the request
+    # (for endpoints that don't need the feature check)
+    return True

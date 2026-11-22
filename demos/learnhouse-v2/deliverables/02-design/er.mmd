@@ -1,0 +1,253 @@
+erDiagram
+  %% LH entities are upstream authorities; EA entities are the 26 extension tables.
+  EA_PRINCIPAL {
+    uuid id PK
+    integer org_id
+  }
+  EA_ACTION_GRANT {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+  }
+  EA_POLICY_VERSION {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer version
+  }
+  EA_TASK_RUN {
+    uuid id PK
+    integer org_id
+    integer course_id
+    text idempotency_key
+    text status
+    bigint execution_epoch
+  }
+  EA_KNOWLEDGE_POINT {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer version
+  }
+  EA_RESOURCE {
+    uuid id PK
+    integer org_id
+    integer course_id
+  }
+  EA_RESOURCE_VERSION {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer version
+    text provenance
+  }
+  EA_RUBRIC_VERSION {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer version
+  }
+  EA_CONTENT_CHECK {
+    uuid id PK
+    integer org_id
+    integer course_id
+  }
+  EA_PUBLICATION_EVENT {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer event_no
+  }
+  EA_ASSIGNMENT_BINDING {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer version
+    text status
+  }
+  EA_ASSIGNMENT_RECIPIENT {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+  }
+  EA_RESUBMISSION_GRANT {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+  }
+  EA_ATTEMPT {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+    text status
+    bigint draft_revision
+  }
+  EA_SUBMISSION {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+    text idempotency_key
+    text provenance
+  }
+  EA_EVALUATION {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+  }
+  EA_GRADE_REVISION {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+    integer revision
+  }
+  EA_REVIEW_REQUEST {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+    text status
+  }
+  EA_NOTE_PERMISSION {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+  }
+  EA_EVIDENCE_EVENT {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+    text provenance
+  }
+  EA_PROFILE_VERSION {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+    integer version
+    text method_kind
+    text provenance
+  }
+  EA_RECOMMENDATION_VERSION {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+    text provenance
+  }
+  EA_RECOMMENDATION_ITEM {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+  }
+  EA_INTERVENTION_EVENT {
+    uuid id PK
+    integer org_id
+    integer course_id
+    integer student_id
+  }
+  EA_OUTBOX_EVENT {
+    uuid id PK
+    integer org_id
+    integer course_id
+  }
+  EA_AUDIT_EVENT {
+    bigint id PK
+    integer org_id
+    integer course_id
+  }
+  LH_ORGANIZATION {
+    int id PK
+  }
+  LH_USER {
+    int id PK
+  }
+  LH_COURSE {
+    int id PK
+    int org_id FK
+  }
+  LH_ACTIVITY {
+    int id PK
+    int course_id FK
+  }
+  LH_ASSIGNMENT {
+    int id PK
+    int course_id FK
+  }
+  LH_USERGROUP {
+    int id PK
+    int org_id FK
+  }
+  LH_MEMBERSHIP {
+    int user_id FK
+    int usergroup_id FK
+    int org_id FK
+  }
+  LH_LEARNER_NOTE {
+    int id PK
+    int user_id FK
+    int course_id FK
+  }
+  LH_ORGANIZATION ||--o{ LH_COURSE : "owns"
+  LH_USER ||--o{ EA_PRINCIPAL : "human_identity"
+  LH_ORGANIZATION ||--o{ EA_PRINCIPAL : "scopes"
+  EA_PRINCIPAL ||--o{ EA_ACTION_GRANT : "receives_actions"
+  LH_COURSE ||--o{ EA_ACTION_GRANT : "limits"
+  LH_USERGROUP ||--o{ LH_MEMBERSHIP : "current_members"
+  LH_USER ||--o{ LH_MEMBERSHIP : "current_member"
+  LH_COURSE ||--o{ LH_ACTIVITY : "organizes"
+  LH_COURSE ||--o{ LH_ASSIGNMENT : "owns"
+  LH_COURSE ||--o{ EA_KNOWLEDGE_POINT : "defines"
+  LH_COURSE ||--o{ EA_POLICY_VERSION : "selects"
+  EA_POLICY_VERSION ||--o{ EA_POLICY_VERSION : "pins_global_policy"
+  EA_PRINCIPAL ||--o{ EA_TASK_RUN : "requests"
+  LH_ACTIVITY ||--o{ EA_RESOURCE : "maps_content"
+  EA_RESOURCE ||--o{ EA_RESOURCE_VERSION : "versions"
+  EA_RESOURCE_VERSION ||--o{ EA_RESOURCE_VERSION : "previous_or_source"
+  EA_TASK_RUN ||--o{ EA_RESOURCE_VERSION : "produces"
+  EA_POLICY_VERSION ||--o{ EA_RESOURCE_VERSION : "governs"
+  EA_RESOURCE_VERSION ||--o{ EA_CONTENT_CHECK : "checked_and_reviewed"
+  EA_CONTENT_CHECK ||--o{ EA_PUBLICATION_EVENT : "supports_publish"
+  EA_RESOURCE_VERSION ||--o{ EA_PUBLICATION_EVENT : "publish_withdraw"
+  LH_USERGROUP ||--o{ EA_PUBLICATION_EVENT : "audience"
+  LH_ASSIGNMENT ||--o{ EA_ASSIGNMENT_BINDING : "frozen_assignment"
+  EA_RESOURCE_VERSION ||--o{ EA_ASSIGNMENT_BINDING : "freezes_content"
+  EA_RUBRIC_VERSION ||--o{ EA_ASSIGNMENT_BINDING : "freezes_rubric"
+  EA_POLICY_VERSION ||--o{ EA_ASSIGNMENT_BINDING : "freezes_policy"
+  EA_PUBLICATION_EVENT ||--o{ EA_ASSIGNMENT_BINDING : "published_basis"
+  EA_ASSIGNMENT_BINDING ||--o{ EA_ASSIGNMENT_RECIPIENT : "assigned_to"
+  LH_USER ||--o{ EA_ASSIGNMENT_RECIPIENT : "student"
+  EA_ASSIGNMENT_RECIPIENT ||--o{ EA_RESUBMISSION_GRANT : "late_or_correction"
+  EA_RESUBMISSION_GRANT ||--o{ EA_ATTEMPT : "limited_slots"
+  EA_ASSIGNMENT_RECIPIENT ||--o{ EA_ATTEMPT : "starts"
+  EA_ATTEMPT ||--o| EA_SUBMISSION : "one_handin"
+  EA_SUBMISSION ||--o{ EA_EVALUATION : "candidate_judgments"
+  EA_EVALUATION ||--o| EA_GRADE_REVISION : "rule_or_teacher_effective"
+  EA_GRADE_REVISION o|--o| EA_GRADE_REVISION : "supersedes"
+  EA_GRADE_REVISION ||--o{ EA_REVIEW_REQUEST : "review_of_version"
+  EA_GRADE_REVISION ||--o{ EA_EVIDENCE_EVENT : "effective_evidence"
+  LH_LEARNER_NOTE ||--o{ EA_NOTE_PERMISSION : "separate_purpose_consent"
+  EA_NOTE_PERMISSION ||--o{ EA_EVIDENCE_EVENT : "consented_source"
+  EA_KNOWLEDGE_POINT ||--o{ EA_EVIDENCE_EVENT : "concerns"
+  EA_GRADE_REVISION ||--o{ EA_PROFILE_VERSION : "triggers"
+  EA_EVIDENCE_EVENT ||--o{ EA_PROFILE_VERSION : "validated_manifest"
+  EA_PROFILE_VERSION ||--o{ EA_RECOMMENDATION_VERSION : "basis"
+  EA_RECOMMENDATION_VERSION ||--o{ EA_RECOMMENDATION_ITEM : "contains"
+  EA_EVIDENCE_EVENT ||--o{ EA_RECOMMENDATION_ITEM : "reason"
+  EA_RESOURCE_VERSION ||--o{ EA_RECOMMENDATION_ITEM : "material_target"
+  EA_ASSIGNMENT_RECIPIENT ||--o{ EA_RECOMMENDATION_ITEM : "task_target"
+  EA_PROFILE_VERSION ||--o{ EA_INTERVENTION_EVENT : "teacher_context"
+  EA_TASK_RUN ||--o{ EA_AUDIT_EVENT : "traced_by"
+  LH_ORGANIZATION ||--o{ EA_OUTBOX_EVENT : "durable_events"
+  EA_PRINCIPAL ||--o{ EA_AUDIT_EVENT : "actor"
+  %% FK optionality and exact composite columns are authoritative in schema.sql.
+  %% evidence_manifest is JSON with DB validation; outbox aggregate references are application-validated.

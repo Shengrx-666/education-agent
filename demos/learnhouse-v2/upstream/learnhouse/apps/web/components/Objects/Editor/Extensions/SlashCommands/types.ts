@@ -1,0 +1,50 @@
+import { Editor, Range } from '@tiptap/react'
+import { ReactNode } from 'react'
+import { PlanLevel } from '@services/plans/plans'
+import type { AIFeatureKey } from '@/lib/ai/aiFeatures'
+
+export interface SlashCommandItem {
+  id: string
+  title: string
+  description: string
+  titleKey: string
+  descriptionKey: string
+  icon: ReactNode
+  category: SlashCommandCategory
+  keywords: string[]
+  command: (editor: Editor) => void
+  requiredPlan?: PlanLevel
+  /** Hidden when this AI switch is off in Settings > AI. */
+  aiFeature?: AIFeatureKey
+}
+
+export type SlashCommandCategory =
+  | 'text'
+  | 'media'
+  | 'interactive'
+  | 'callouts'
+  | 'dynamic'
+  | 'ui'
+  | 'tables'
+
+export interface SlashCommandsListProps {
+  items: SlashCommandItem[]
+  command: (item: SlashCommandItem) => void
+  editor: Editor
+  currentPlan?: PlanLevel
+}
+
+export interface SlashCommandsListRef {
+  onKeyDown: (event: KeyboardEvent) => boolean
+}
+
+export interface SuggestionProps {
+  editor: Editor
+  range: Range
+  query: string
+  text: string
+  items: SlashCommandItem[]
+  command: (item: SlashCommandItem) => void
+  decorationNode: Element | null
+  clientRect: (() => DOMRect | null) | null
+}

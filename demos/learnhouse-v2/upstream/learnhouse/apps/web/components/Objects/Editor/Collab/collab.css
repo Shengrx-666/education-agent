@@ -1,0 +1,163 @@
+/* Collaborative editing: other people's carets and selections. */
+
+.lh-collab-caret {
+  position: relative;
+  margin-inline: -1px;
+  border-inline-start: 2px solid var(--lh-caret);
+  pointer-events: none;
+  word-break: normal;
+}
+
+.lh-collab-caret__label {
+  position: absolute;
+  bottom: 100%;
+  inset-inline-start: -2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 1px 2px;
+  border-radius: 6px 6px 6px 0;
+  background: var(--lh-caret);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  user-select: none;
+  /* Shown while the person types, then fades (the widget is redrawn when
+     their caret moves, which restarts the animation). */
+  animation: lh-collab-label-fade 0.35s ease-out 2.6s forwards;
+}
+
+.lh-collab-caret:hover .lh-collab-caret__label,
+.lh-collab-caret--ping .lh-collab-caret__label {
+  animation: none;
+  opacity: 1;
+}
+
+.lh-collab-caret__avatar,
+.lh-collab-caret__initials {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.lh-collab-caret__initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(255 255 255 / 0.25);
+  font-size: 8px;
+}
+
+.lh-collab-selection {
+  background-color: color-mix(in srgb, var(--lh-caret) 18%, transparent);
+  border-radius: 2px;
+}
+
+@keyframes lh-collab-label-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lh-collab-caret__label {
+    animation-duration: 0s;
+  }
+}
+
+/* Other editors' mouse pointers (RemotePointers). The layer covers the
+   editor body and clips, so a pointer near an edge never adds a scrollbar;
+   positions are written by the animation loop. */
+.lh-collab-pointers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.lh-collab-pointer {
+  position: absolute;
+  top: 0;
+  left: 0; /* rtl-ok: positioned by transform from the layer's origin. */
+  /* Puts the arrow's tip (not the box corner) on the shared point. */
+  margin: -1.5px 0 0 -2px; /* rtl-ok: matches the arrow, which never flips. */
+  display: flex;
+  align-items: flex-start;
+  /* The arrow's tip is the origin: keep it first in RTL pages too. */
+  direction: ltr;
+  will-change: transform;
+  transition: opacity 0.3s ease-out;
+}
+
+.lh-collab-pointer__arrow {
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.25));
+}
+
+.lh-collab-pointer__label {
+  margin-top: 14px;
+  margin-inline-start: -4px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: 6px;
+  border-start-start-radius: 2px;
+  background: var(--lh-caret);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  user-select: none;
+  box-shadow: 0 2px 6px -1px rgb(0 0 0 / 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lh-collab-pointer {
+    transition: none;
+  }
+}
+
+/* The gap ring around collaborator avatars follows the header surface. */
+html[data-theme='dark'] .activity-editor-top {
+  --lh-collab-avatar-gap: rgb(18 18 20);
+}
+
+/* A block someone else has selected or is editing inside (RemotePointers). */
+.lh-collab-block {
+  position: absolute;
+  top: 0;
+  left: 0; /* rtl-ok: positioned by transform from the layer's origin. */
+  border-radius: 10px;
+  box-shadow: 0 0 0 2px var(--lh-caret);
+  transition: opacity 0.2s ease-out;
+}
+
+.lh-collab-block__chip {
+  position: absolute;
+  top: calc(-20px - var(--lh-chip-offset, 0px));
+  inset-inline-end: 8px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 7px;
+  border-radius: 6px 6px 0 0;
+  background: var(--lh-caret);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lh-collab-block {
+    transition: none;
+  }
+}

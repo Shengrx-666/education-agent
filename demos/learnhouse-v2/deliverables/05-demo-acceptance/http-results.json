@@ -1,0 +1,1304 @@
+{
+  "run_id": "20261120T040250Z-0ba496b5",
+  "timestamp": "2026-11-20T04:02:57.085000+00:00",
+  "base_url": "http://127.0.0.1:8138",
+  "provenance": "demo",
+  "authentication": "real upstream cookie login",
+  "external_model_calls": 0,
+  "student_code_executions": 0,
+  "passed": 139,
+  "failed": 0,
+  "completed": true,
+  "checks": [
+    {
+      "name": "real login admin",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "read /admin/policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "anonymous session blocked",
+      "passed": true,
+      "status": 401,
+      "expected_status": [
+        401
+      ],
+      "error_code": "AUTHENTICATION_REQUIRED",
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "real login student_a",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "session role student_a",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "server assigned role student_a",
+      "passed": true
+    },
+    {
+      "name": "capability honesty student_a",
+      "passed": true
+    },
+    {
+      "name": "real login student_b",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "session role student_b",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "server assigned role student_b",
+      "passed": true
+    },
+    {
+      "name": "capability honesty student_b",
+      "passed": true
+    },
+    {
+      "name": "real login teacher_a",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "session role teacher_a",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "server assigned role teacher_a",
+      "passed": true
+    },
+    {
+      "name": "capability honesty teacher_a",
+      "passed": true
+    },
+    {
+      "name": "real login teacher_b",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "session role teacher_b",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "server assigned role teacher_b",
+      "passed": true
+    },
+    {
+      "name": "capability honesty teacher_b",
+      "passed": true
+    },
+    {
+      "name": "real login admin",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "session role admin",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "server assigned role admin",
+      "passed": true
+    },
+    {
+      "name": "capability honesty admin",
+      "passed": true
+    },
+    {
+      "name": "write without Origin rejected",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "ORIGIN_DENIED",
+      "method": "DELETE",
+      "path": "/api/v1/auth/logout"
+    },
+    {
+      "name": "write foreign Origin rejected",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "ORIGIN_DENIED",
+      "method": "DELETE",
+      "path": "/api/v1/auth/logout"
+    },
+    {
+      "name": "course visibility student_a",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses"
+    },
+    {
+      "name": "only assigned course student_a",
+      "passed": true
+    },
+    {
+      "name": "course visibility student_b",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses"
+    },
+    {
+      "name": "only assigned course student_b",
+      "passed": true
+    },
+    {
+      "name": "course visibility teacher_a",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses"
+    },
+    {
+      "name": "only assigned course teacher_a",
+      "passed": true
+    },
+    {
+      "name": "course visibility teacher_b",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses"
+    },
+    {
+      "name": "only assigned course teacher_b",
+      "passed": true
+    },
+    {
+      "name": "course body isolation student_b",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "resource body isolation student_b",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/resources/d8448d43-d940-58dd-b5db-d996f9e2165f"
+    },
+    {
+      "name": "course body isolation teacher_b",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "resource body isolation teacher_b",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/resources/d8448d43-d940-58dd-b5db-d996f9e2165f"
+    },
+    {
+      "name": "course body isolation admin",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "resource body isolation admin",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/resources/d8448d43-d940-58dd-b5db-d996f9e2165f"
+    },
+    {
+      "name": "legacy course API blocked",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "LEGACY_ROUTE_DISABLED",
+      "method": "GET",
+      "path": "/api/v1/courses/course_ab7d0a82-6b0f-5b23-b49e-69b26febd15d"
+    },
+    {
+      "name": "legacy activities API blocked",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "LEGACY_ROUTE_DISABLED",
+      "method": "GET",
+      "path": "/api/v1/activities/activity_dc3017ae-a48d-5f2a-a87b-012a9d2b589b"
+    },
+    {
+      "name": "student cannot access administration",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/admin/scopes"
+    },
+    {
+      "name": "teacher cannot access administration",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/admin/scopes"
+    },
+    {
+      "name": "admin metadata scopes",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/scopes"
+    },
+    {
+      "name": "no teaching bodies in admin scopes",
+      "passed": true
+    },
+    {
+      "name": "admin metadata policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "no teaching bodies in admin policies",
+      "passed": true
+    },
+    {
+      "name": "admin metadata operations",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/operations"
+    },
+    {
+      "name": "no teaching bodies in admin operations",
+      "passed": true
+    },
+    {
+      "name": "admin metadata audit",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/audit"
+    },
+    {
+      "name": "no teaching bodies in admin audit",
+      "passed": true
+    },
+    {
+      "name": "read /bindings/6a2a0e50-e21f-59a2-b3e2-0bbbd1521f82",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/bindings/6a2a0e50-e21f-59a2-b3e2-0bbbd1521f82"
+    },
+    {
+      "name": "answer key hidden before effective grade",
+      "passed": true
+    },
+    {
+      "name": "client identity header cannot escalate",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "read /resources/a10da53a-e9a4-53ef-9683-1c82d634fddf",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/resources/a10da53a-e9a4-53ef-9683-1c82d634fddf"
+    },
+    {
+      "name": "read /courses/1",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "create mixed assignment",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/courses/1/bindings"
+    },
+    {
+      "name": "student B cannot read A assignment",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/bindings/94503cdd-809e-494b-911c-c7dc587a8255"
+    },
+    {
+      "name": "read /bindings/94503cdd-809e-494b-911c-c7dc587a8255",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/bindings/94503cdd-809e-494b-911c-c7dc587a8255"
+    },
+    {
+      "name": "teacher cannot start private attempt",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "POST",
+      "path": "/bindings/94503cdd-809e-494b-911c-c7dc587a8255/attempts"
+    },
+    {
+      "name": "student starts attempt",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/bindings/94503cdd-809e-494b-911c-c7dc587a8255/attempts"
+    },
+    {
+      "name": "teacher cannot read private draft",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac"
+    },
+    {
+      "name": "student B cannot read A draft",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac"
+    },
+    {
+      "name": "missing concurrency header rejected",
+      "passed": true,
+      "status": 428,
+      "expected_status": [
+        428
+      ],
+      "error_code": "PRECONDITION_REQUIRED",
+      "method": "PUT",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac/draft"
+    },
+    {
+      "name": "save draft",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "PUT",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac/draft"
+    },
+    {
+      "name": "replay draft idempotently",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "PUT",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac/draft"
+    },
+    {
+      "name": "draft replay keeps same revision",
+      "passed": true
+    },
+    {
+      "name": "idempotency key payload conflict rejected",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "IDEMPOTENCY_CONFLICT",
+      "method": "PUT",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac/draft"
+    },
+    {
+      "name": "stale draft rejected",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "VERSION_CONFLICT",
+      "method": "PUT",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac/draft"
+    },
+    {
+      "name": "incorrect answer hash rejected",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "VERSION_CONFLICT",
+      "method": "POST",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac/submissions"
+    },
+    {
+      "name": "submit mixed answers",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac/submissions"
+    },
+    {
+      "name": "submit replay returns receipt",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac/submissions"
+    },
+    {
+      "name": "only one immutable submission receipt",
+      "passed": true
+    },
+    {
+      "name": "new key cannot resubmit closed attempt",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "VERSION_CONFLICT",
+      "method": "POST",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac/submissions"
+    },
+    {
+      "name": "submitted draft cannot be overwritten",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "VERSION_CONFLICT",
+      "method": "PUT",
+      "path": "/attempts/5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac/draft"
+    },
+    {
+      "name": "submission body isolation student_b",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52"
+    },
+    {
+      "name": "submission body isolation teacher_b",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52"
+    },
+    {
+      "name": "submission body isolation admin",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52"
+    },
+    {
+      "name": "read /submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52"
+    },
+    {
+      "name": "mixed answers await teacher",
+      "passed": true
+    },
+    {
+      "name": "read /submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52"
+    },
+    {
+      "name": "unconfigured AI evaluation fails closed",
+      "passed": true,
+      "status": 503,
+      "expected_status": [
+        503
+      ],
+      "error_code": "MODEL_NOT_CONFIGURED",
+      "method": "POST",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52/evaluations"
+    },
+    {
+      "name": "teacher evaluation 80",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52/evaluations"
+    },
+    {
+      "name": "apply teacher grade 80",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52/grade-revisions"
+    },
+    {
+      "name": "read /submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52"
+    },
+    {
+      "name": "teacher grade becomes revision one",
+      "passed": true
+    },
+    {
+      "name": "teacher evaluation 85",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52/evaluations"
+    },
+    {
+      "name": "teacher evaluation 90",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52/evaluations"
+    },
+    {
+      "name": "real login teacher_a",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "concurrent grade correction has one winner",
+      "passed": true,
+      "statuses": [
+        200,
+        409
+      ],
+      "error_codes": [
+        null,
+        "VERSION_CONFLICT"
+      ]
+    },
+    {
+      "name": "read /submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52"
+    },
+    {
+      "name": "grade history retained as supersession chain",
+      "passed": true
+    },
+    {
+      "name": "grading leaves submission answers immutable",
+      "passed": true
+    },
+    {
+      "name": "read /bindings/94503cdd-809e-494b-911c-c7dc587a8255",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/bindings/94503cdd-809e-494b-911c-c7dc587a8255"
+    },
+    {
+      "name": "answer released after effective result",
+      "passed": true
+    },
+    {
+      "name": "student requests grade review",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/submissions/2c06c590-b4c4-49bb-8487-bb39b4487f52/reviews"
+    },
+    {
+      "name": "teacher resolves review retaining grade",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/reviews/93ea9e18-a1ed-4c8e-9210-f641c94409c0/resolution"
+    },
+    {
+      "name": "review resolution stored",
+      "passed": true
+    },
+    {
+      "name": "read /courses/1/students/2/learning-state",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/1/students/2/learning-state"
+    },
+    {
+      "name": "profile honestly identifies rule statistics",
+      "passed": true
+    },
+    {
+      "name": "grade correction triggers fresh profile",
+      "passed": true
+    },
+    {
+      "name": "student cannot read another student learning state",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/courses/1/students/2/learning-state"
+    },
+    {
+      "name": "read /courses/1",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "research generation fails closed before model",
+      "passed": true,
+      "status": 503,
+      "expected_status": [
+        503
+      ],
+      "error_code": "RESEARCH_NOT_CONNECTED",
+      "method": "POST",
+      "path": "/courses/1/generation-runs"
+    },
+    {
+      "name": "deterministic template generation",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/courses/1/generation-runs"
+    },
+    {
+      "name": "rule template completes without model",
+      "passed": true
+    },
+    {
+      "name": "read /resources/01aa2555-ab50-4dcb-9218-2ca67c1fa2af",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/resources/01aa2555-ab50-4dcb-9218-2ca67c1fa2af"
+    },
+    {
+      "name": "generated resource labelled demo rules",
+      "passed": true
+    },
+    {
+      "name": "server deterministic validation",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/resource-versions/e68b611f-2b38-4eb5-8352-b531960a99b0/checks"
+    },
+    {
+      "name": "generated rule content passes validation",
+      "passed": true
+    },
+    {
+      "name": "current review policy blocks unreviewed rule publication",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "HUMAN_REVIEW_REQUIRED",
+      "method": "POST",
+      "path": "/resource-versions/e68b611f-2b38-4eb5-8352-b531960a99b0/publication-events"
+    },
+    {
+      "name": "teacher approves rule material under review policy",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/resource-versions/e68b611f-2b38-4eb5-8352-b531960a99b0/checks"
+    },
+    {
+      "name": "publish validated and reviewed rule content",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/resource-versions/e68b611f-2b38-4eb5-8352-b531960a99b0/publication-events"
+    },
+    {
+      "name": "read /courses/1",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "create rule assignment",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/courses/1/bindings"
+    },
+    {
+      "name": "read /bindings/7aa6bba6-3201-436f-8e78-4f01d3b5cbab",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/bindings/7aa6bba6-3201-436f-8e78-4f01d3b5cbab"
+    },
+    {
+      "name": "student starts rule attempt",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/bindings/7aa6bba6-3201-436f-8e78-4f01d3b5cbab/attempts"
+    },
+    {
+      "name": "save rule answers",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "PUT",
+      "path": "/attempts/9159ec5f-ebae-4ab0-bc84-abb57be47212/draft"
+    },
+    {
+      "name": "submit rule answers",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/attempts/9159ec5f-ebae-4ab0-bc84-abb57be47212/submissions"
+    },
+    {
+      "name": "read /submissions/aad1f005-2f92-4603-ad41-3df7ef95d860",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/submissions/aad1f005-2f92-4603-ad41-3df7ef95d860"
+    },
+    {
+      "name": "objective answers automatically get rule grade",
+      "passed": true
+    },
+    {
+      "name": "rule submission provenance remains demo",
+      "passed": true
+    },
+    {
+      "name": "read /courses/1/notes",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/1/notes"
+    },
+    {
+      "name": "teacher cannot enumerate private notes",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/courses/1/notes"
+    },
+    {
+      "name": "student B cannot enumerate A course notes",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/courses/1/notes"
+    },
+    {
+      "name": "create private synthetic note",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/courses/1/notes"
+    },
+    {
+      "name": "read /courses/1/notes",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/1/notes"
+    },
+    {
+      "name": "teacher cannot read unshared note",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "NOTE_NOT_SHARED",
+      "method": "GET",
+      "path": "/notes/3/shared-content"
+    },
+    {
+      "name": "read /session",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "explicit teacher note sharing",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/notes/3/permissions"
+    },
+    {
+      "name": "read /notes/3/shared-content",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/notes/3/shared-content"
+    },
+    {
+      "name": "shared note includes consent reference",
+      "passed": true
+    },
+    {
+      "name": "shared note remains scoped teacher_b",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/notes/3/shared-content"
+    },
+    {
+      "name": "shared note remains scoped student_b",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/notes/3/shared-content"
+    },
+    {
+      "name": "shared note remains scoped admin",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "SCOPE_DENIED",
+      "method": "GET",
+      "path": "/notes/3/shared-content"
+    },
+    {
+      "name": "read /session",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/session"
+    },
+    {
+      "name": "teacher read consent does not grant profile use",
+      "passed": true
+    },
+    {
+      "name": "revoke note permission",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/notes/3/permissions"
+    },
+    {
+      "name": "revocation immediately hides note from teacher",
+      "passed": true,
+      "status": 403,
+      "expected_status": [
+        403
+      ],
+      "error_code": "NOTE_NOT_SHARED",
+      "method": "GET",
+      "path": "/notes/3/shared-content"
+    }
+  ],
+  "created_objects": {
+    "current_global_policy_id": "9cbc879f-1916-4a21-9b43-4911c0bfbcf5",
+    "current_course_policy_1": "5778edc7-f8b4-466c-8bcd-2bd65903d6dc",
+    "current_course_policy_2": "1f04c42d-36b1-4f86-a143-2be16c22174b",
+    "mixed_binding_id": "94503cdd-809e-494b-911c-c7dc587a8255",
+    "mixed_attempt_id": "5dba2e16-24c5-4a7a-bf9e-ed749fe2cfac",
+    "mixed_submission_id": "2c06c590-b4c4-49bb-8487-bb39b4487f52",
+    "rule_task_id": "64b9be5e-1d0d-4433-bcbf-22e509b2e701",
+    "rule_binding_id": "7aa6bba6-3201-436f-8e78-4f01d3b5cbab",
+    "rule_submission_id": "aad1f005-2f92-4603-ad41-3df7ef95d860",
+    "private_note_id": 3
+  }
+}

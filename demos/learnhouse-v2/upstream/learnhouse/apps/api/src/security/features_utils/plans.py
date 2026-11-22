@@ -1,0 +1,523 @@
+"""
+Plan-based feature restriction utilities.
+
+Single source of truth for plan hierarchy, feature configs, and limits.
+Org config only stores the plan name (cloud.plan); all feature settings
+are derived from these definitions at runtime.
+"""
+
+from typing import Literal
+
+
+# Plan type definition - matches OrgCloudConfig
+PlanLevel = Literal["free", "personal", "personal-family", "standard", "pro", "business", "enterprise"]
+
+# Plan hierarchy (lower index = lower tier)
+PLAN_HIERARCHY: list[str] = ["free", "personal", "personal-family", "standard", "pro", "business", "enterprise"]
+
+# Feature to required plan mapping
+FEATURE_PLAN_REQUIREMENTS: dict[str, PlanLevel] = {
+    # AI is available from the free plan (metered by a starter credit allowance);
+    # access is gated by remaining AI credits rather than by plan tier.
+    "ai": "free",
+    "analytics": "standard",
+    "collaboration": "standard",
+    "communities": "standard",
+    "drip": "standard",
+    "payments": "standard",
+    "podcasts": "standard",
+    "live_sessions": "business",
+    "seo": "standard",
+    "usergroups": "standard",
+    "api_tokens": "pro",
+    "webhooks": "pro",
+    "boards": "personal",
+    "certifications": "pro",
+    "paths": "pro",
+    "messaging": "free",
+    "custom_domains": "pro",
+    "playgrounds": "pro",
+    "roles": "pro",
+    "versioning": "pro",
+    "analytics_advanced": "pro",
+    "audit_logs": "business",
+    "scorm": "business",
+    "sso": "business",
+    "lti": "business",
+    "scim": "business",
+    "required_training": "business",
+    "company_seats": "business",
+    # Newsletters and one-off emails to learners (EE). The plan limit is the
+    # monthly number of newsletter emails the org may send (0 = unlimited).
+    "newsletter": "standard",
+    # User groups beyond the basics (smart rules, nesting, group managers, the
+    # group space, messaging and manager digests). Basic groups stay on the
+    # "usergroups" gate above.
+    "usergroups_advanced": "pro",
+    # CRM integrations (EE): HubSpot on Pro, Salesforce on Enterprise (the
+    # convention for Salesforce connectors, and its API needs an edition
+    # most small teams don't run).
+    "crm": "pro",
+    "crm_salesforce": "enterprise",
+}
+
+# Atlas (chat, the AI editor, course translation) is on every plan; AI credits
+# meter it. Only scheduled Atlas agents need a plan (Business).
+ATLAS_REQUIRED_PLAN: PlanLevel = "free"
+
+# Pro orgs that existed when these moved to Business keep them until the
+# date in their config's ``legacy_pro_until`` (stamped by migration
+# v2p1a2n3s4g5, one year after the V2 plans shipped).
+LEGACY_PRO_FEATURES: frozenset[str] = frozenset({"live_sessions", "required_training", "company_seats"})
+
+# ============================================================================
+# Comprehensive plan feature configs (single source of truth)
+# ============================================================================
+# Each plan defines: features (enabled + limits), general settings, cloud flags.
+# limit=0 means unlimited for that feature.
+
+PLAN_FEATURE_CONFIGS: dict[str, dict] = {
+    "free": {
+        "features": {
+            # AI is enabled on free with a starter credit allowance (see
+            # AI_CREDIT_LIMITS). Usage is metered by credits, not blocked by plan.
+            "ai": {"enabled": True, "limit": 0},
+            "analytics": {"enabled": False, "limit": 0},
+            "api": {"enabled": False, "limit": 0},
+            "assignments": {"enabled": True, "limit": 5},
+            "collaboration": {"enabled": False, "limit": 0},
+            "courses": {"enabled": True, "limit": 1},
+
+            "members": {"admin_limit": 1, "enabled": True, "limit": 10},
+            "payments": {"enabled": False},
+
+            "usergroups": {"enabled": False, "limit": 0},
+            "podcasts": {"enabled": False, "limit": 0},
+            "live_sessions": {"enabled": False, "limit": 0},
+            "boards": {"enabled": False, "limit": 0},
+            "folders": {"enabled": True},
+            "paths": {"enabled": False},
+            "messaging": {"enabled": True},
+            "communities": {"enabled": False},
+            "playgrounds": {"enabled": False, "limit": 0},
+            "roles": {"enabled": False},
+            "scorm": {"enabled": False},
+            "sso": {"enabled": False},
+            "lti": {"enabled": False},
+            "scim": {"enabled": False},
+            "versioning": {"enabled": False},
+            "webhooks": {"enabled": False, "limit": 0},
+            "audit_logs": {"enabled": False},
+            "required_training": {"enabled": False},
+            "company_seats": {"enabled": False},
+            "newsletter": {"enabled": False, "limit": 0},
+            "crm": {"enabled": False},
+            "crm_salesforce": {"enabled": False},
+        },
+        "general": {"watermark": True},
+        "cloud": {"plan": "free", "custom_domain": False},
+    },
+    "personal": {
+        "features": {
+            "ai": {"enabled": True, "limit": 1000},
+            "analytics": {"enabled": False, "limit": 0},
+            "api": {"enabled": False, "limit": 0},
+            "assignments": {"enabled": True, "limit": 0},
+            "collaboration": {"enabled": False, "limit": 0},
+            "courses": {"enabled": True, "limit": 0},
+
+            "members": {"admin_limit": 1, "enabled": True, "limit": 4},
+            "payments": {"enabled": False},
+
+            "usergroups": {"enabled": False, "limit": 0},
+            "podcasts": {"enabled": False, "limit": 0},
+            "live_sessions": {"enabled": False, "limit": 0},
+            "boards": {"enabled": True, "limit": 0},
+            "folders": {"enabled": True},
+            "paths": {"enabled": False},
+            "messaging": {"enabled": True},
+            "communities": {"enabled": False},
+            "playgrounds": {"enabled": False, "limit": 0},
+            "roles": {"enabled": False},
+            "scorm": {"enabled": False},
+            "sso": {"enabled": False},
+            "lti": {"enabled": False},
+            "scim": {"enabled": False},
+            "versioning": {"enabled": False},
+            "webhooks": {"enabled": False, "limit": 0},
+            "audit_logs": {"enabled": False},
+            "required_training": {"enabled": False},
+            "company_seats": {"enabled": False},
+            "newsletter": {"enabled": False, "limit": 0},
+            "crm": {"enabled": False},
+            "crm_salesforce": {"enabled": False},
+        },
+        "general": {"watermark": False},
+        "cloud": {"plan": "personal", "custom_domain": False},
+    },
+    "personal-family": {
+        "features": {
+            "ai": {"enabled": True, "limit": 3000},
+            "analytics": {"enabled": False, "limit": 0},
+            "api": {"enabled": False, "limit": 0},
+            "assignments": {"enabled": True, "limit": 0},
+            "collaboration": {"enabled": False, "limit": 0},
+            "courses": {"enabled": True, "limit": 0},
+
+            "members": {"admin_limit": 4, "enabled": True, "limit": 4},
+            "payments": {"enabled": False},
+
+            "usergroups": {"enabled": False, "limit": 0},
+            "podcasts": {"enabled": False, "limit": 0},
+            "live_sessions": {"enabled": False, "limit": 0},
+            "boards": {"enabled": True, "limit": 0},
+            "folders": {"enabled": True},
+            "paths": {"enabled": False},
+            "messaging": {"enabled": True},
+            "communities": {"enabled": False},
+            "playgrounds": {"enabled": False, "limit": 0},
+            "roles": {"enabled": False},
+            "scorm": {"enabled": False},
+            "sso": {"enabled": False},
+            "lti": {"enabled": False},
+            "scim": {"enabled": False},
+            "versioning": {"enabled": False},
+            "webhooks": {"enabled": False, "limit": 0},
+            "audit_logs": {"enabled": False},
+            "required_training": {"enabled": False},
+            "company_seats": {"enabled": False},
+            "newsletter": {"enabled": False, "limit": 0},
+            "crm": {"enabled": False},
+            "crm_salesforce": {"enabled": False},
+        },
+        "general": {"watermark": False},
+        "cloud": {"plan": "personal-family", "custom_domain": False},
+    },
+    "standard": {
+        "features": {
+            "ai": {"enabled": True, "limit": 1000},
+            "analytics": {"enabled": True, "limit": 0},
+            "api": {"enabled": False, "limit": 0},
+            "assignments": {"enabled": True, "limit": 0},
+            "collaboration": {"enabled": True, "limit": 0},
+            "courses": {"enabled": True, "limit": 0},
+
+            "members": {"admin_limit": 3, "enabled": True, "limit": 0},
+            "payments": {"enabled": True},
+
+            "usergroups": {"enabled": True, "limit": 0},
+            "podcasts": {"enabled": True, "limit": 0},
+            "live_sessions": {"enabled": False, "limit": 0},
+            "boards": {"enabled": False, "limit": 0},
+            "folders": {"enabled": True},
+            "paths": {"enabled": False},
+            "messaging": {"enabled": True},
+            "communities": {"enabled": True},
+            "playgrounds": {"enabled": False, "limit": 0},
+            "roles": {"enabled": False},
+            "scorm": {"enabled": False},
+            "sso": {"enabled": False},
+            "lti": {"enabled": False},
+            "scim": {"enabled": False},
+            "versioning": {"enabled": False},
+            "webhooks": {"enabled": False, "limit": 0},
+            "audit_logs": {"enabled": False},
+            "required_training": {"enabled": False},
+            "company_seats": {"enabled": False},
+            "newsletter": {"enabled": True, "limit": 10000},
+            "crm": {"enabled": False},
+            "crm_salesforce": {"enabled": False},
+        },
+        "general": {"watermark": False},
+        "cloud": {"plan": "standard", "custom_domain": False},
+    },
+    "pro": {
+        "features": {
+            "ai": {"enabled": True, "limit": 2000},
+            "analytics": {"enabled": True, "limit": 0},
+            "api": {"enabled": True, "limit": 0},
+            "assignments": {"enabled": True, "limit": 0},
+            "collaboration": {"enabled": True, "limit": 0},
+            "courses": {"enabled": True, "limit": 0},
+
+            "members": {"admin_limit": 10, "enabled": True, "limit": 0},
+            "payments": {"enabled": True},
+
+            "usergroups": {"enabled": True, "limit": 0},
+            "podcasts": {"enabled": True, "limit": 0},
+            "live_sessions": {"enabled": False, "limit": 0},
+            "boards": {"enabled": True, "limit": 0},
+            "folders": {"enabled": True},
+            "paths": {"enabled": True},
+            "messaging": {"enabled": True},
+            "communities": {"enabled": True},
+            "playgrounds": {"enabled": True, "limit": 0},
+            "roles": {"enabled": True},
+            "scorm": {"enabled": False},
+            "sso": {"enabled": False},
+            "lti": {"enabled": False},
+            "scim": {"enabled": False},
+            "versioning": {"enabled": True},
+            "webhooks": {"enabled": True, "limit": 0},
+            "audit_logs": {"enabled": False},
+            "required_training": {"enabled": False},
+            "company_seats": {"enabled": False},
+            "newsletter": {"enabled": True, "limit": 50000},
+            "crm": {"enabled": True},
+            "crm_salesforce": {"enabled": False},
+        },
+        "general": {"watermark": False},
+        "cloud": {"plan": "pro", "custom_domain": True},
+    },
+    "business": {
+        "features": {
+            "ai": {"enabled": True, "limit": 10000},
+            "analytics": {"enabled": True, "limit": 0},
+            "api": {"enabled": True, "limit": 0},
+            "assignments": {"enabled": True, "limit": 0},
+            "collaboration": {"enabled": True, "limit": 0},
+            "courses": {"enabled": True, "limit": 0},
+
+            "members": {"admin_limit": 25, "enabled": True, "limit": 0},
+            "payments": {"enabled": True},
+
+            "usergroups": {"enabled": True, "limit": 0},
+            "podcasts": {"enabled": True, "limit": 0},
+            "live_sessions": {"enabled": True, "limit": 0},
+            "boards": {"enabled": True, "limit": 0},
+            "folders": {"enabled": True},
+            "paths": {"enabled": True},
+            "messaging": {"enabled": True},
+            "communities": {"enabled": True},
+            "playgrounds": {"enabled": True, "limit": 0},
+            "roles": {"enabled": True},
+            "scorm": {"enabled": True},
+            "sso": {"enabled": True},
+            "lti": {"enabled": True},
+            "scim": {"enabled": True},
+            "versioning": {"enabled": True},
+            "webhooks": {"enabled": True, "limit": 0},
+            "audit_logs": {"enabled": True},
+            "required_training": {"enabled": True},
+            "company_seats": {"enabled": True},
+            "newsletter": {"enabled": True, "limit": 100000},
+            "crm": {"enabled": True},
+            "crm_salesforce": {"enabled": False},
+        },
+        "general": {"watermark": False},
+        "cloud": {"plan": "business", "custom_domain": True},
+    },
+    "enterprise": {
+        "features": {
+            "ai": {"enabled": True, "limit": 10000},
+            "analytics": {"enabled": True, "limit": 0},
+            "api": {"enabled": True, "limit": 0},
+            "assignments": {"enabled": True, "limit": 0},
+            "collaboration": {"enabled": True, "limit": 0},
+            "courses": {"enabled": True, "limit": 0},
+
+            "members": {"admin_limit": 100, "enabled": True, "limit": 0},
+            "payments": {"enabled": True},
+
+            "usergroups": {"enabled": True, "limit": 0},
+            "podcasts": {"enabled": True, "limit": 0},
+            "live_sessions": {"enabled": True, "limit": 0},
+            "boards": {"enabled": True, "limit": 0},
+            "folders": {"enabled": True},
+            "paths": {"enabled": True},
+            "messaging": {"enabled": True},
+            "communities": {"enabled": True},
+            "playgrounds": {"enabled": True, "limit": 0},
+            "roles": {"enabled": True},
+            "scorm": {"enabled": True},
+            "sso": {"enabled": True},
+            "lti": {"enabled": True},
+            "scim": {"enabled": True},
+            "versioning": {"enabled": True},
+            "webhooks": {"enabled": True, "limit": 0},
+            "audit_logs": {"enabled": True},
+            "required_training": {"enabled": True},
+            "company_seats": {"enabled": True},
+            "newsletter": {"enabled": True, "limit": 250000},
+            "crm": {"enabled": True},
+            "crm_salesforce": {"enabled": True},
+        },
+        "general": {"watermark": False},
+        "cloud": {"plan": "enterprise", "custom_domain": True},
+    },
+}
+
+# Plan-based resource limits (for plan-based features checked against DB counts)
+# 0 = unlimited
+PLAN_LIMITS: dict[str, dict[str, int]] = {
+    plan: {
+        "courses": cfg["features"]["courses"]["limit"],
+        "members": cfg["features"]["members"]["limit"],
+        "admin_seats": cfg["features"]["members"]["admin_limit"],
+    }
+    for plan, cfg in PLAN_FEATURE_CONFIGS.items()
+}
+
+# AI credit allocation per plan
+# 0 = no access, -1 = unlimited
+# Free orgs get a starter allowance of AI credits so new teachers can try the AI
+# features (incl. AI podcast/audio generation) before upgrading. When these run
+# out, the AI endpoints return 402/403 which the UI surfaces as an upgrade prompt.
+AI_CREDIT_LIMITS: dict[str, int] = {
+    "free": 20,
+    "personal": 500,
+    "personal-family": 3000,
+    "standard": 1000,
+    "pro": 2000,
+    "business": 10000,
+    "enterprise": -1,
+}
+
+
+# ============================================================================
+# Lookup helpers
+# ============================================================================
+
+def get_plan_feature_config(plan: str, feature: str) -> dict:
+    """
+    Get the full feature config for a plan.
+
+    Returns:
+        Dict with at least {enabled, limit} keys. Returns disabled/0 for unknown features.
+    """
+    cfg = PLAN_FEATURE_CONFIGS.get(plan, PLAN_FEATURE_CONFIGS["free"])
+    return cfg["features"].get(feature, {"enabled": False, "limit": 0})
+
+
+def is_paying_plan(plan: str) -> bool:
+    """
+    Whether `plan` is a paid plan (anything above free).
+
+    Features INCLUDED in a paid plan are guaranteed to the organization: the
+    backoffice kill switch can never disable them. It still governs free orgs and
+    comp-granted extras. The org's own toggle is separate and always applies.
+    See resolve_feature().
+    """
+    return plan not in ("free",)
+
+
+# Plans an organization can move up to, in order. The personal line is a
+# separate product for individual creators, so organizations on the business
+# line (free/standard/pro/business) are never pointed at it.
+_BUSINESS_UPGRADES: list[str] = ["standard", "pro", "business", "enterprise"]
+
+
+def get_upgrade_plan(plan: str, feature: str) -> str | None:
+    """
+    Cheapest plan above `plan` whose config includes `feature`.
+
+    Used to label a locked feature with the plan that actually unlocks it, which
+    can differ from FEATURE_PLAN_REQUIREMENTS (e.g. boards are in Personal but not
+    in Standard, so a Standard org needs Pro). Returns None when the feature is
+    already included or no plan includes it.
+    """
+    if get_plan_feature_config(plan, feature).get("enabled", False):
+        return None
+    for candidate in get_upgrade_candidates(plan):
+        if get_plan_feature_config(candidate, feature).get("enabled", False):
+            return candidate
+    return None
+
+
+def get_upgrade_candidates(plan: str) -> list[str]:
+    """Plans above `plan` it can move up to, cheapest first (see _BUSINESS_UPGRADES)."""
+    if plan in ("personal", "personal-family"):
+        return PLAN_HIERARCHY[PLAN_HIERARCHY.index(plan) + 1:]
+    current = PLAN_HIERARCHY.index(plan) if plan in PLAN_HIERARCHY else 0
+    return [p for p in _BUSINESS_UPGRADES if PLAN_HIERARCHY.index(p) > current]
+
+
+def is_feature_enabled_for_plan(plan: str, feature: str) -> bool:
+    """Check if a feature is enabled for a given plan."""
+    from src.core.deployment_mode import get_deployment_mode
+    mode = get_deployment_mode()
+    if mode == 'ee':
+        return True
+    if mode == 'oss':
+        # OSS enables all non-EE features
+        return feature not in ('analytics', 'api', 'sso', 'audit_logs', 'scorm', 'lti', 'scim', 'required_training', 'company_seats', 'newsletter', 'crm', 'crm_salesforce')
+    return get_plan_feature_config(plan, feature).get("enabled", False)
+
+
+def get_feature_limit_for_plan(plan: str, feature: str) -> int:
+    """
+    Get the limit for a specific feature from the plan config.
+
+    Returns:
+        The limit (0 = unlimited).
+    """
+    from src.core.deployment_mode import get_deployment_mode
+    mode = get_deployment_mode()
+    if mode != 'saas':
+        return 0  # Unlimited in EE and OSS modes
+    return get_plan_feature_config(plan, feature).get("limit", 0)
+
+
+def get_plan_config(plan: str) -> dict:
+    """Get the full plan config. Returns free config for unknown plans."""
+    return PLAN_FEATURE_CONFIGS.get(plan, PLAN_FEATURE_CONFIGS["free"])
+
+
+def get_ai_credit_limit(plan: str) -> int:
+    """
+    Get the AI credit limit for a specific plan.
+
+    Returns:
+        The AI credit limit (0 = no access, -1 = unlimited)
+    """
+    from src.core.deployment_mode import get_deployment_mode
+    mode = get_deployment_mode()
+    if mode != 'saas':
+        return -1  # Unlimited in EE and OSS modes
+    return AI_CREDIT_LIMITS.get(plan, 0)
+
+
+def get_plan_limit(plan: str, feature: str) -> int:
+    """
+    Get the limit for a plan-based feature (courses, members, admin_seats).
+
+    Returns:
+        The limit for the feature (0 means unlimited)
+    """
+    from src.core.deployment_mode import get_deployment_mode
+    mode = get_deployment_mode()
+    if mode != 'saas':
+        return 0  # Unlimited in EE and OSS modes
+    plan_limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
+    return plan_limits.get(feature, 0)
+
+
+def plan_meets_requirement(current_plan: str, required_plan: str) -> bool:
+    """
+    Check if the current plan meets or exceeds the required plan level.
+    """
+    from src.core.deployment_mode import get_deployment_mode
+    mode = get_deployment_mode()
+    if mode == 'ee':
+        return True
+    if mode == 'oss':
+        # Business and Enterprise gate EE-only features (SSO, LTI, SCORM,
+        # audit logs), which the community edition doesn't ship.
+        return required_plan not in ('business', 'enterprise')
+    # SaaS: normal hierarchy check
+    try:
+        current_index = PLAN_HIERARCHY.index(current_plan)
+    except ValueError:
+        current_index = 0
+    try:
+        required_index = PLAN_HIERARCHY.index(required_plan)
+    except ValueError:
+        required_index = 0
+    return current_index >= required_index
+
+
+def get_required_plan_for_feature(feature_key: str) -> PlanLevel | None:
+    """
+    Get the required plan level for a specific feature.
+    """
+    return FEATURE_PLAN_REQUIREMENTS.get(feature_key)

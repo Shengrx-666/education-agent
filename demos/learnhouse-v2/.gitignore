@@ -1,0 +1,35 @@
+# This directory vendors the reviewed LearnHouse community source snapshot.
+# Override parent data/cache exclusions only for those checked-in sources.
+!/upstream/
+!/upstream/learnhouse/
+!/upstream/learnhouse/**
+
+# Local execution, dependencies and generated assets must stay private.
+.runtime/
+node_modules/
+.next/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.env
+*.local.json
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.sqlite-*
+*.db
+*.db-*
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# The research implementation lives at the repository root, not a nested clone.
+/upstream/education-agent/

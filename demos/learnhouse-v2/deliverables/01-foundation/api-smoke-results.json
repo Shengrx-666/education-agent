@@ -1,0 +1,52 @@
+{
+  "scope": "Isolated upstream bootstrap admin; not V2 role/object authorization validation",
+  "total": 8,
+  "passed": 8,
+  "checks": [
+    {
+      "name": "upstream PostgreSQL health",
+      "passed": true,
+      "observed": 200
+    },
+    {
+      "name": "anonymous identity rejected",
+      "passed": true,
+      "observed": 401
+    },
+    {
+      "name": "generated local account can login",
+      "passed": true,
+      "observed": 200
+    },
+    {
+      "name": "access cookie is HttpOnly",
+      "passed": true,
+      "observed": {
+        "cookie_names": [
+          "LH_access",
+          "LH_refresh"
+        ]
+      }
+    },
+    {
+      "name": "cookie session can read own identity",
+      "passed": true,
+      "observed": 200
+    },
+    {
+      "name": "foreign origin mutation rejected",
+      "passed": true,
+      "observed": 403
+    },
+    {
+      "name": "valid origin logout succeeds",
+      "passed": true,
+      "observed": 200
+    },
+    {
+      "name": "logged-out client has no session",
+      "passed": true,
+      "observed": 401
+    }
+  ]
+}

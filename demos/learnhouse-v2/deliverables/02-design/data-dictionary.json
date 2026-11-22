@@ -1,0 +1,3733 @@
+{
+  "format_version": "1.0",
+  "design_date": "2026-11-20",
+  "upstream_commit": "c76cf6f64ab71ed042fe83e985d9c4ab3fa148f5",
+  "postgresql_min_version": 14,
+  "extension_table_count": 26,
+  "sql_file": "schema.sql",
+  "sql_sha256": "fad3fba28d7f7933fc05b87b57cb5a4f9f0dba4bf37f530bbc600531ce3b4616",
+  "verification_status": "PostgreSQL 14.24: DDL committed against minimal stubs and copied real 106-table LearnHouse schema; 37 rollback-only constraint assertions passed on stub; HTTP/concurrency/populated migrations not validated",
+  "id_convention": {
+    "upstream": "INTEGER identity/serial-like PK from SQLModel; UUID-like strings are not assumed unique",
+    "extension": "UUID gen_random_uuid(), except ea.audit_event BIGINT identity"
+  },
+  "time_convention": "timestamptz; connection time zone UTC; display localized",
+  "upstream_authorities": [
+    "organization",
+    "user",
+    "role",
+    "userorganization",
+    "course",
+    "activity",
+    "usergroup",
+    "usergroupuser",
+    "usergroupresource",
+    "assignment",
+    "assignmenttask",
+    "learner_note"
+  ],
+  "non_authoritative_legacy_history": [
+    "assignmentusersubmission",
+    "assignmenttasksubmission",
+    "assignmentaigrade"
+  ],
+  "json_contracts": {
+    "profile_version.states": {
+      "key": "knowledge_point UUID",
+      "value": {
+        "state": "good|bad|unknown|conflict",
+        "source": "explicit source reference; unknown when absent"
+      }
+    },
+    "profile_version.research_fields": {
+      "field": {
+        "status": "unknown|not_connected|unvalidated|observed|estimated|conflict",
+        "source": "explicit evidence/method source or unknown, never fabricated",
+        "method_version": "version identifier or unknown",
+        "value": "optional; absent/null when unknown/not_connected"
+      }
+    },
+    "profile_version.evidence_manifest": [
+      {
+        "evidence_id": "ea.evidence_event UUID",
+        "used_as": "effective|supporting|excluded; service validates current eligibility"
+      }
+    ],
+    "outbox_event.command.receipt": {
+      "event_type": "command.receipt",
+      "deduplication_key": "actorId:operation:Idempotency-Key",
+      "payload": {
+        "request_hash": "sha256",
+        "http_status": "integer",
+        "result_refs": "IDs only"
+      },
+      "published_at": "set in command transaction, no external dispatch"
+    }
+  },
+  "enforcement_boundary": {
+    "database": [
+      "composite scope foreign keys",
+      "unique roots/successors and idempotency constraints",
+      "immutable facts",
+      "frozen mutable table identities",
+      "score range and frozen rubric",
+      "attempt window and direct current membership checks",
+      "explicit provenance checks",
+      "JSON evidence and research-state shape checks"
+    ],
+    "application": [
+      "authenticated actor identity and valid current session",
+      "fine-grained grant and independent delegation checks",
+      "latest review/check outcomes and full deterministic check coverage",
+      "policy JSON validation and only-tighten global constraints",
+      "reference-answer release and response projections",
+      "revocation-aware source retrieval, consent and old recommendation blocking",
+      "job transition/CAS/fencing and late-result authorization",
+      "JSON object references beyond documented DB checks",
+      "outbox consumer deduplication and upstream projection routing"
+    ]
+  },
+  "tables": [
+    {
+      "name": "ea.principal",
+      "authority": "education-agent extension",
+      "purpose": "组织范围内安全主体，引用上游用户或受限服务身份，不保存凭据",
+      "mutability": "state_columns_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL REFERENCES public.organization(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "kind",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "对象类型枚举；详见 SQL CHECK",
+          "classification": "metadata",
+          "definition_sql": "kind text NOT NULL CHECK (kind IN ('human','service'))"
+        },
+        {
+          "name": "user_id",
+          "type": "integer",
+          "nullable": true,
+          "default_sql": null,
+          "description": "上游 user.id；账号身份，不复制登录信息",
+          "classification": "personal_identifier",
+          "definition_sql": "user_id integer REFERENCES public.\"user\"(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "service_name",
+          "type": "text",
+          "nullable": true,
+          "default_sql": null,
+          "description": "受限服务身份的组织内唯一稳定名称；不存访问密钥",
+          "classification": "metadata",
+          "definition_sql": "service_name text"
+        },
+        {
+          "name": "disabled_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "主体停用时间；NULL 表示未停用",
+          "classification": "metadata",
+          "definition_sql": "disabled_at timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id, org_id)",
+        "CHECK ((kind = 'human' AND user_id IS NOT NULL AND service_name IS NULL) OR\n         (kind = 'service' AND user_id IS NULL AND service_name IS NOT NULL AND length(service_name) > 0))"
+      ],
+      "indexes_sql": [
+        "CREATE UNIQUE INDEX uq_principal_human ON ea.principal(org_id,user_id) WHERE kind='human';",
+        "CREATE UNIQUE INDEX uq_principal_service ON ea.principal(org_id,service_name) WHERE kind='service';"
+      ]
+    },
+    {
+      "name": "ea.action_grant",
+      "authority": "education-agent extension",
+      "purpose": "细粒度动作授权及课程/班级/学生范围，独立批准和撤销",
+      "mutability": "state_columns_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL REFERENCES public.organization(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "principal_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "被授权安全主体，同组织",
+          "classification": "personal_identifier",
+          "definition_sql": "principal_id uuid NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": true,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer"
+        },
+        {
+          "name": "usergroup_id",
+          "type": "integer",
+          "nullable": true,
+          "default_sql": null,
+          "description": "上游 usergroup.id；班级范围，必须与 org_id 一致",
+          "classification": "metadata",
+          "definition_sql": "usergroup_id integer"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": true,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer REFERENCES public.\"user\"(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "action",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "业务动作枚举；不能从上游角色名隐式推导",
+          "classification": "metadata",
+          "definition_sql": "action text NOT NULL CHECK (action IN ('course.create','course.edit','content.read','content.generate','content.edit','content.review','content.publish','task.manage','submission.grade','result.review','profile.read','intervention.write','evidence.read','export.read','access.manage','policy.manage','operations.manage','audit.metadata'))"
+        },
+        {
+          "name": "granted_by",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；授予主体，服务另验委派权限",
+          "classification": "metadata",
+          "definition_sql": "granted_by uuid NOT NULL"
+        },
+        {
+          "name": "approved_by",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织独立批准主体；不得等于被授权主体",
+          "classification": "metadata",
+          "definition_sql": "approved_by uuid NOT NULL"
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "非空业务理由；教学正文理由不得复制到运维审计",
+          "classification": "metadata",
+          "definition_sql": "reason text NOT NULL CHECK (length(btrim(reason)) > 0)"
+        },
+        {
+          "name": "starts_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "授权/同意有效开始时间，服务端时钟",
+          "classification": "metadata",
+          "definition_sql": "starts_at timestamptz NOT NULL DEFAULT now()"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "有效截止时间；NULL 仅在允许无限期的对象上使用",
+          "classification": "metadata",
+          "definition_sql": "expires_at timestamptz"
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "撤销时间；非 NULL 后不得复活此记录",
+          "classification": "metadata",
+          "definition_sql": "revoked_at timestamptz"
+        },
+        {
+          "name": "revoked_by",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "同组织撤销主体，与 revoked_at 成对",
+          "classification": "metadata",
+          "definition_sql": "revoked_by uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "FOREIGN KEY (principal_id,org_id) REFERENCES ea.principal(id,org_id)",
+        "FOREIGN KEY (granted_by,org_id) REFERENCES ea.principal(id,org_id)",
+        "FOREIGN KEY (approved_by,org_id) REFERENCES ea.principal(id,org_id)",
+        "FOREIGN KEY (revoked_by,org_id) REFERENCES ea.principal(id,org_id)",
+        "FOREIGN KEY (course_id,org_id) REFERENCES public.course(id,org_id)",
+        "FOREIGN KEY (usergroup_id,org_id) REFERENCES public.usergroup(id,org_id)",
+        "CHECK (approved_by <> principal_id)",
+        "CHECK (course_id IS NOT NULL OR action IN ('course.create','access.manage','policy.manage','operations.manage','audit.metadata'))",
+        "CHECK ((usergroup_id IS NULL AND student_id IS NULL) OR course_id IS NOT NULL)",
+        "CHECK (expires_at IS NULL OR expires_at > starts_at)",
+        "CHECK ((revoked_at IS NULL) = (revoked_by IS NULL))",
+        "CHECK (revoked_at IS NULL OR revoked_at >= created_at)"
+      ],
+      "indexes_sql": [
+        "CREATE INDEX ix_grant_active_lookup ON ea.action_grant(org_id,principal_id,action,course_id) WHERE revoked_at IS NULL;"
+      ]
+    },
+    {
+      "name": "ea.policy_version",
+      "authority": "education-agent extension",
+      "purpose": "组织允许策略或课程选择策略的不可变版本",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL REFERENCES public.organization(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": true,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer"
+        },
+        {
+          "name": "family_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同一逻辑策略或量规的版本族 UUID",
+          "classification": "metadata",
+          "definition_sql": "family_id uuid NOT NULL"
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "从 1 开始的逻辑版本号，不能覆盖已有版本",
+          "classification": "metadata",
+          "definition_sql": "version integer NOT NULL CHECK (version > 0)"
+        },
+        {
+          "name": "parent_policy_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "课程策略引用的组织全局策略版本",
+          "classification": "metadata",
+          "definition_sql": "parent_policy_id uuid"
+        },
+        {
+          "name": "policy_type",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "global 或 course；决定 course_id 和 parent_policy_id 的必填关系",
+          "classification": "metadata",
+          "definition_sql": "policy_type text NOT NULL CHECK (policy_type IN ('global','course'))"
+        },
+        {
+          "name": "rules",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "策略规则 JSON；应用需用有版本的 JSON schema 验证和检查不放宽全局限制",
+          "classification": "educational_body",
+          "definition_sql": "rules jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(rules)='object')"
+        },
+        {
+          "name": "content_hash",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "规范化内容/对象的 SHA-256 小写十六进制摘要；服务计算验证",
+          "classification": "metadata",
+          "definition_sql": "content_hash text NOT NULL CHECK (content_hash ~ '^[0-9a-f]{64}$')"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；创建主体",
+          "classification": "metadata",
+          "definition_sql": "created_by uuid NOT NULL"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,org_id)",
+        "UNIQUE (org_id,family_id,version)",
+        "FOREIGN KEY (course_id,org_id) REFERENCES public.course(id,org_id)",
+        "FOREIGN KEY (parent_policy_id,org_id) REFERENCES ea.policy_version(id,org_id)",
+        "FOREIGN KEY (created_by,org_id) REFERENCES ea.principal(id,org_id)",
+        "CHECK ((policy_type='global' AND course_id IS NULL AND parent_policy_id IS NULL) OR\n         (policy_type='course' AND course_id IS NOT NULL AND parent_policy_id IS NOT NULL))"
+      ],
+      "indexes_sql": []
+    },
+    {
+      "name": "ea.task_run",
+      "authority": "education-agent extension",
+      "purpose": "异步任务、幂等、租约、执行代次、有限重试与预算",
+      "mutability": "state_columns_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL REFERENCES public.organization(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": true,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer"
+        },
+        {
+          "name": "requested_by",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "发起任务的同组织安全主体；回调时仍重验当前权限",
+          "classification": "metadata",
+          "definition_sql": "requested_by uuid NOT NULL"
+        },
+        {
+          "name": "operation",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "异步任务类型，决定业务幂等命名空间",
+          "classification": "metadata",
+          "definition_sql": "operation text NOT NULL CHECK (operation IN ('parse','generate','validate','evaluate','profile_update','recommend','recompute','projection'))"
+        },
+        {
+          "name": "idempotency_key",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "调用幂等键；唯一范围见表约束，同键异 hash 返回 409",
+          "classification": "metadata",
+          "definition_sql": "idempotency_key text NOT NULL CHECK (length(idempotency_key) BETWEEN 1 AND 200)"
+        },
+        {
+          "name": "input_hash",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "规范化输入清单的 SHA-256；用于重复请求冲突和重算追踪",
+          "classification": "metadata",
+          "definition_sql": "input_hash text NOT NULL CHECK (input_hash ~ '^[0-9a-f]{64}$')"
+        },
+        {
+          "name": "input_refs",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "任务输入对象编号、版本和方法标识；不存敏感全文",
+          "classification": "metadata",
+          "definition_sql": "input_refs jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(input_refs)='object')"
+        },
+        {
+          "name": "result_refs",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "任务已产出对象编号/版本；不存正文",
+          "classification": "metadata",
+          "definition_sql": "result_refs jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(result_refs)='object')"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "default_sql": "'queued'",
+          "description": "受控生命周期状态；API仍须验证允许转移与权限",
+          "classification": "metadata",
+          "definition_sql": "status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','succeeded','failed','cancelled'))"
+        },
+        {
+          "name": "attempt_count",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": "0",
+          "description": "本任务已领取执行次数；不得超过 max_attempts",
+          "classification": "metadata",
+          "definition_sql": "attempt_count integer NOT NULL DEFAULT 0 CHECK (attempt_count >= 0)"
+        },
+        {
+          "name": "max_attempts",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": "3",
+          "description": "允许的最大尝试/运行次数；语义取决于所属表",
+          "classification": "metadata",
+          "definition_sql": "max_attempts integer NOT NULL DEFAULT 3 CHECK (max_attempts BETWEEN 1 AND 10)"
+        },
+        {
+          "name": "execution_epoch",
+          "type": "bigint",
+          "nullable": false,
+          "default_sql": "0",
+          "description": "单调递增执行代次；租约和取消的 fencing token",
+          "classification": "metadata",
+          "definition_sql": "execution_epoch bigint NOT NULL DEFAULT 0 CHECK (execution_epoch >= 0)"
+        },
+        {
+          "name": "lease_until",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "worker 租约截止时间；回调必须匹配当前 epoch 和有效状态",
+          "classification": "metadata",
+          "definition_sql": "lease_until timestamptz"
+        },
+        {
+          "name": "not_before",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "任务允许再次领取的最早时间",
+          "classification": "metadata",
+          "definition_sql": "not_before timestamptz NOT NULL DEFAULT now()"
+        },
+        {
+          "name": "error_code",
+          "type": "text",
+          "nullable": true,
+          "default_sql": null,
+          "description": "可公开的结构化故障码，不含密码、提示或答案全文",
+          "classification": "metadata",
+          "definition_sql": "error_code text"
+        },
+        {
+          "name": "budget_limit",
+          "type": "numeric(14,6)",
+          "nullable": false,
+          "default_sql": "0",
+          "description": "任务允许成本上限；不等同于完整计费账务",
+          "classification": "metadata",
+          "definition_sql": "budget_limit numeric(14,6) NOT NULL DEFAULT 0 CHECK (budget_limit >= 0)"
+        },
+        {
+          "name": "budget_spent",
+          "type": "numeric(14,6)",
+          "nullable": false,
+          "default_sql": "0",
+          "description": "已记录成本；0 到 budget_limit，币种/计价单位由策略固定",
+          "classification": "metadata",
+          "definition_sql": "budget_spent numeric(14,6) NOT NULL DEFAULT 0 CHECK (budget_spent >= 0 AND budget_spent <= budget_limit)"
+        },
+        {
+          "name": "cancelled_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "取消时间；仅 cancelled 状态必填",
+          "classification": "metadata",
+          "definition_sql": "cancelled_at timestamptz"
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "终态完成时间，由任务服务维护",
+          "classification": "metadata",
+          "definition_sql": "completed_at timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "允许状态或草稿的最近保存时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "updated_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,org_id)",
+        "UNIQUE (id,course_id,org_id)",
+        "UNIQUE (org_id,requested_by,operation,idempotency_key)",
+        "FOREIGN KEY (requested_by,org_id) REFERENCES ea.principal(id,org_id)",
+        "FOREIGN KEY (course_id,org_id) REFERENCES public.course(id,org_id)",
+        "CHECK (attempt_count <= max_attempts)",
+        "CHECK ((status='cancelled') = (cancelled_at IS NOT NULL))",
+        "CHECK (status <> 'running' OR lease_until IS NOT NULL)"
+      ],
+      "indexes_sql": [
+        "CREATE INDEX ix_task_claim ON ea.task_run(not_before,created_at) WHERE status IN ('queued','running');",
+        "CREATE INDEX ix_task_course ON ea.task_run(org_id,course_id,status,created_at DESC);"
+      ]
+    },
+    {
+      "name": "ea.knowledge_point",
+      "authority": "education-agent extension",
+      "purpose": "课程内知识点定义与版本",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "课程知识点稳定编码，与版本共同唯一",
+          "classification": "metadata",
+          "definition_sql": "code text NOT NULL"
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": "1",
+          "description": "从 1 开始的逻辑版本号，不能覆盖已有版本",
+          "classification": "metadata",
+          "definition_sql": "version integer NOT NULL DEFAULT 1 CHECK (version > 0)"
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "知识点显示名称",
+          "classification": "metadata",
+          "definition_sql": "label text NOT NULL"
+        },
+        {
+          "name": "definition",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "知识点结构化定义、来源和可选先修关系；应用验证同课程引用",
+          "classification": "educational_body",
+          "definition_sql": "definition jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(definition)='object')"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,course_id,org_id)",
+        "UNIQUE (org_id,course_id,code,version)",
+        "FOREIGN KEY (course_id,org_id) REFERENCES public.course(id,org_id)"
+      ],
+      "indexes_sql": []
+    },
+    {
+      "name": "ea.resource",
+      "authority": "education-agent extension",
+      "purpose": "资料、课程内容或练习的稳定扩展身份",
+      "mutability": "state_columns_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "activity_id",
+          "type": "integer",
+          "nullable": true,
+          "default_sql": null,
+          "description": "上游 activity.id；同课程活动映射",
+          "classification": "metadata",
+          "definition_sql": "activity_id integer"
+        },
+        {
+          "name": "kind",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "对象类型枚举；详见 SQL CHECK",
+          "classification": "metadata",
+          "definition_sql": "kind text NOT NULL CHECK (kind IN ('source_text','source_pdf','lesson','exercise'))"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "界面显示标题，不含权限意义",
+          "classification": "metadata",
+          "definition_sql": "title text NOT NULL"
+        },
+        {
+          "name": "owner_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "资源责任主体；所有权不自动授予所有教学动作",
+          "classification": "metadata",
+          "definition_sql": "owner_id uuid NOT NULL"
+        },
+        {
+          "name": "archived_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "逻辑归档时间，保留历史引用",
+          "classification": "metadata",
+          "definition_sql": "archived_at timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,course_id,org_id)",
+        "FOREIGN KEY (course_id,org_id) REFERENCES public.course(id,org_id)",
+        "FOREIGN KEY (activity_id,course_id,org_id) REFERENCES public.activity(id,course_id,org_id)",
+        "FOREIGN KEY (owner_id,org_id) REFERENCES ea.principal(id,org_id)"
+      ],
+      "indexes_sql": []
+    },
+    {
+      "name": "ea.resource_version",
+      "authority": "education-agent extension",
+      "purpose": "原件、解析产物或生成内容的不可变快照与受限答案",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "resource_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "稳定资源身份，同 org/course",
+          "classification": "metadata",
+          "definition_sql": "resource_id uuid NOT NULL"
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "从 1 开始的逻辑版本号，不能覆盖已有版本",
+          "classification": "metadata",
+          "definition_sql": "version integer NOT NULL CHECK (version > 0)"
+        },
+        {
+          "name": "previous_version_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "同一版本链前驱；NULL 表示首版",
+          "classification": "metadata",
+          "definition_sql": "previous_version_id uuid"
+        },
+        {
+          "name": "source_version_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "同课程输入资料版本；与修订前驱含义不同",
+          "classification": "metadata",
+          "definition_sql": "source_version_id uuid"
+        },
+        {
+          "name": "generation_task_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "产生此版本的同课程任务；手工创建可为空",
+          "classification": "metadata",
+          "definition_sql": "generation_task_id uuid"
+        },
+        {
+          "name": "policy_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "冻结策略版本；可为同组织全局策略或本课程策略",
+          "classification": "metadata",
+          "definition_sql": "policy_version_id uuid NOT NULL"
+        },
+        {
+          "name": "content",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "允许按学生权限投影的资料或题面 JSON；并非整行可公开",
+          "classification": "educational_body",
+          "definition_sql": "content jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(content)='object')"
+        },
+        {
+          "name": "restricted_content",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "受限答案/内部依据；学生在开放规则满足前不得获得",
+          "classification": "educational_body",
+          "definition_sql": "restricted_content jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(restricted_content)='object')"
+        },
+        {
+          "name": "object_key",
+          "type": "text",
+          "nullable": true,
+          "default_sql": null,
+          "description": "对象存储 key，不是公开永久 URL；下载时重新鉴权",
+          "classification": "metadata",
+          "definition_sql": "object_key text"
+        },
+        {
+          "name": "content_hash",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "规范化内容/对象的 SHA-256 小写十六进制摘要；服务计算验证",
+          "classification": "metadata",
+          "definition_sql": "content_hash text NOT NULL CHECK (content_hash ~ '^[0-9a-f]{64}$')"
+        },
+        {
+          "name": "processing_state",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "pending/ready/failed；不可变版本记录当次处理结果",
+          "classification": "metadata",
+          "definition_sql": "processing_state text NOT NULL CHECK (processing_state IN ('pending','ready','failed'))"
+        },
+        {
+          "name": "generation_mode",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "upload/teacher/research_generator/rule_template；研究候选强制复核",
+          "classification": "metadata",
+          "definition_sql": "generation_mode text NOT NULL CHECK (generation_mode IN ('upload','teacher','research_generator','rule_template'))"
+        },
+        {
+          "name": "provenance",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "数据来源标识：真实/演示/人工示例/模拟等；不能相互冒充",
+          "classification": "metadata",
+          "definition_sql": "provenance text NOT NULL CHECK (provenance IN ('real','demo','manual_example','simulated','external'))"
+        },
+        {
+          "name": "source_manifest",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "输入版本/hash、外部来源、模型/模板/代码版本及参数；不存隐藏思维链",
+          "classification": "educational_body",
+          "definition_sql": "source_manifest jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(source_manifest)='object')"
+        },
+        {
+          "name": "forced_review",
+          "type": "boolean",
+          "nullable": false,
+          "default_sql": "true",
+          "description": "该版本不可被策略消除的人工复核门禁",
+          "classification": "metadata",
+          "definition_sql": "forced_review boolean NOT NULL DEFAULT true"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；创建主体",
+          "classification": "metadata",
+          "definition_sql": "created_by uuid NOT NULL"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,course_id,org_id)",
+        "UNIQUE (id,resource_id,course_id,org_id)",
+        "UNIQUE (resource_id,version)",
+        "FOREIGN KEY (resource_id,course_id,org_id) REFERENCES ea.resource(id,course_id,org_id)",
+        "FOREIGN KEY (previous_version_id,resource_id,course_id,org_id) REFERENCES ea.resource_version(id,resource_id,course_id,org_id)",
+        "FOREIGN KEY (source_version_id,course_id,org_id) REFERENCES ea.resource_version(id,course_id,org_id)",
+        "FOREIGN KEY (generation_task_id,course_id,org_id) REFERENCES ea.task_run(id,course_id,org_id)",
+        "FOREIGN KEY (policy_version_id,org_id) REFERENCES ea.policy_version(id,org_id)",
+        "FOREIGN KEY (created_by,org_id) REFERENCES ea.principal(id,org_id)",
+        "CHECK ((version=1 AND previous_version_id IS NULL) OR (version>1 AND previous_version_id IS NOT NULL))",
+        "CHECK (previous_version_id IS NULL OR previous_version_id <> id)",
+        "CHECK (source_version_id IS NULL OR source_version_id <> id)",
+        "CHECK (generation_mode <> 'research_generator' OR forced_review)"
+      ],
+      "indexes_sql": []
+    },
+    {
+      "name": "ea.rubric_version",
+      "authority": "education-agent extension",
+      "purpose": "不可变量规及评分尺度",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "family_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同一逻辑策略或量规的版本族 UUID",
+          "classification": "metadata",
+          "definition_sql": "family_id uuid NOT NULL"
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "从 1 开始的逻辑版本号，不能覆盖已有版本",
+          "classification": "metadata",
+          "definition_sql": "version integer NOT NULL CHECK (version > 0)"
+        },
+        {
+          "name": "criteria",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'[]'::jsonb",
+          "description": "量规条目数组；应用验证题目、知识点归属和分值总和",
+          "classification": "educational_body",
+          "definition_sql": "criteria jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(criteria)='array')"
+        },
+        {
+          "name": "maximum_score",
+          "type": "numeric(10,4)",
+          "nullable": false,
+          "default_sql": null,
+          "description": "此量规/评估的最大分值；评估必须匹配冻结量规",
+          "classification": "metadata",
+          "definition_sql": "maximum_score numeric(10,4) NOT NULL CHECK (maximum_score > 0)"
+        },
+        {
+          "name": "content_hash",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "规范化内容/对象的 SHA-256 小写十六进制摘要；服务计算验证",
+          "classification": "metadata",
+          "definition_sql": "content_hash text NOT NULL CHECK (content_hash ~ '^[0-9a-f]{64}$')"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；创建主体",
+          "classification": "metadata",
+          "definition_sql": "created_by uuid NOT NULL"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,course_id,org_id)",
+        "UNIQUE (org_id,course_id,family_id,version)",
+        "FOREIGN KEY (course_id,org_id) REFERENCES public.course(id,org_id)",
+        "FOREIGN KEY (created_by,org_id) REFERENCES ea.principal(id,org_id)"
+      ],
+      "indexes_sql": []
+    },
+    {
+      "name": "ea.content_check",
+      "authority": "education-agent extension",
+      "purpose": "同版本确定性校验或人工审批结果",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "resource_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "不可变资源内容版本，同课程组织",
+          "classification": "metadata",
+          "definition_sql": "resource_version_id uuid NOT NULL"
+        },
+        {
+          "name": "policy_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "冻结策略版本；可为同组织全局策略或本课程策略",
+          "classification": "metadata",
+          "definition_sql": "policy_version_id uuid NOT NULL"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "相关同组织/课程 task_run；没有异步任务的事实允许为空",
+          "classification": "metadata",
+          "definition_sql": "task_id uuid"
+        },
+        {
+          "name": "check_kind",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "deterministic 或 human_review，校验和审批分别存证",
+          "classification": "metadata",
+          "definition_sql": "check_kind text NOT NULL CHECK (check_kind IN ('deterministic','human_review'))"
+        },
+        {
+          "name": "verdict",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "确定性 pass/fail，人工 approve/reject，禁止交叉使用",
+          "classification": "metadata",
+          "definition_sql": "verdict text NOT NULL CHECK (verdict IN ('pass','fail','approve','reject'))"
+        },
+        {
+          "name": "checks",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "结构化检查项及依据；应用验证必需检查项完整且针对本版本",
+          "classification": "educational_body",
+          "definition_sql": "checks jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(checks)='object')"
+        },
+        {
+          "name": "checker_version",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "执行确定性校验器或审核协议的版本标识",
+          "classification": "metadata",
+          "definition_sql": "checker_version text NOT NULL"
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；事实对应操作者，客户端不得冒充",
+          "classification": "personal_identifier",
+          "definition_sql": "actor_id uuid NOT NULL"
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "default_sql": "''",
+          "description": "非空业务理由；教学正文理由不得复制到运维审计",
+          "classification": "metadata",
+          "definition_sql": "reason text NOT NULL DEFAULT ''"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,resource_version_id,course_id,org_id)",
+        "FOREIGN KEY (resource_version_id,course_id,org_id) REFERENCES ea.resource_version(id,course_id,org_id)",
+        "FOREIGN KEY (policy_version_id,org_id) REFERENCES ea.policy_version(id,org_id)",
+        "FOREIGN KEY (task_id,course_id,org_id) REFERENCES ea.task_run(id,course_id,org_id)",
+        "FOREIGN KEY (actor_id,org_id) REFERENCES ea.principal(id,org_id)",
+        "CHECK ((check_kind='deterministic' AND verdict IN ('pass','fail')) OR\n         (check_kind='human_review' AND verdict IN ('approve','reject') AND length(btrim(reason)) > 0))"
+      ],
+      "indexes_sql": [
+        "CREATE INDEX ix_check_version ON ea.content_check(resource_version_id,created_at DESC);"
+      ]
+    },
+    {
+      "name": "ea.publication_event",
+      "authority": "education-agent extension",
+      "purpose": "按版本和班级的发布/撤回事件链",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "resource_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "不可变资源内容版本，同课程组织",
+          "classification": "metadata",
+          "definition_sql": "resource_version_id uuid NOT NULL"
+        },
+        {
+          "name": "usergroup_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 usergroup.id；班级范围，必须与 org_id 一致",
+          "classification": "metadata",
+          "definition_sql": "usergroup_id integer NOT NULL"
+        },
+        {
+          "name": "event_no",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同资源版本+班级发布链连续序号",
+          "classification": "metadata",
+          "definition_sql": "event_no integer NOT NULL CHECK (event_no > 0)"
+        },
+        {
+          "name": "previous_event_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "上一个发布/撤回事件；每节点最多一个后继",
+          "classification": "metadata",
+          "definition_sql": "previous_event_id uuid"
+        },
+        {
+          "name": "action",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "业务动作枚举；不能从上游角色名隐式推导",
+          "classification": "metadata",
+          "definition_sql": "action text NOT NULL CHECK (action IN ('publish','withdraw'))"
+        },
+        {
+          "name": "validation_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "同资源版本的确定性通过记录",
+          "classification": "metadata",
+          "definition_sql": "validation_id uuid"
+        },
+        {
+          "name": "review_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "同资源版本的人工通过记录；forced_review 时必填",
+          "classification": "metadata",
+          "definition_sql": "review_id uuid"
+        },
+        {
+          "name": "policy_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "冻结策略版本；可为同组织全局策略或本课程策略",
+          "classification": "metadata",
+          "definition_sql": "policy_version_id uuid NOT NULL"
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；事实对应操作者，客户端不得冒充",
+          "classification": "personal_identifier",
+          "definition_sql": "actor_id uuid NOT NULL"
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "非空业务理由；教学正文理由不得复制到运维审计",
+          "classification": "metadata",
+          "definition_sql": "reason text NOT NULL CHECK (length(btrim(reason)) > 0)"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,course_id,org_id)",
+        "UNIQUE (id,resource_version_id,usergroup_id,course_id,org_id)",
+        "UNIQUE (resource_version_id,usergroup_id,event_no)",
+        "UNIQUE (previous_event_id)",
+        "FOREIGN KEY (resource_version_id,course_id,org_id) REFERENCES ea.resource_version(id,course_id,org_id)",
+        "FOREIGN KEY (usergroup_id,org_id) REFERENCES public.usergroup(id,org_id)",
+        "FOREIGN KEY (previous_event_id,resource_version_id,usergroup_id,course_id,org_id) REFERENCES ea.publication_event(id,resource_version_id,usergroup_id,course_id,org_id)",
+        "FOREIGN KEY (validation_id,resource_version_id,course_id,org_id) REFERENCES ea.content_check(id,resource_version_id,course_id,org_id)",
+        "FOREIGN KEY (review_id,resource_version_id,course_id,org_id) REFERENCES ea.content_check(id,resource_version_id,course_id,org_id)",
+        "FOREIGN KEY (policy_version_id,org_id) REFERENCES ea.policy_version(id,org_id)",
+        "FOREIGN KEY (actor_id,org_id) REFERENCES ea.principal(id,org_id)",
+        "CHECK ((event_no=1 AND previous_event_id IS NULL) OR (event_no>1 AND previous_event_id IS NOT NULL))",
+        "CHECK (action <> 'publish' OR validation_id IS NOT NULL)"
+      ],
+      "indexes_sql": [
+        "CREATE UNIQUE INDEX uq_publication_root ON ea.publication_event(resource_version_id,usergroup_id) WHERE previous_event_id IS NULL;"
+      ]
+    },
+    {
+      "name": "ea.assignment_binding",
+      "authority": "education-agent extension",
+      "purpose": "上游作业的一次布置版本，冻结资源、量规、策略及规则",
+      "mutability": "state_columns_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "assignment_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 assignment.id；保留通用 LMS 作业身份",
+          "classification": "metadata",
+          "definition_sql": "assignment_id integer NOT NULL"
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "从 1 开始的逻辑版本号，不能覆盖已有版本",
+          "classification": "metadata",
+          "definition_sql": "version integer NOT NULL CHECK (version > 0)"
+        },
+        {
+          "name": "resource_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "不可变资源内容版本，同课程组织",
+          "classification": "metadata",
+          "definition_sql": "resource_version_id uuid NOT NULL"
+        },
+        {
+          "name": "rubric_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "冻结评分量规版本；同课程组织",
+          "classification": "metadata",
+          "definition_sql": "rubric_version_id uuid NOT NULL"
+        },
+        {
+          "name": "policy_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "冻结策略版本；可为同组织全局策略或本课程策略",
+          "classification": "metadata",
+          "definition_sql": "policy_version_id uuid NOT NULL"
+        },
+        {
+          "name": "publication_event_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "布置时当前有效的发布事件，保存旧发布依据",
+          "classification": "metadata",
+          "definition_sql": "publication_event_id uuid NOT NULL"
+        },
+        {
+          "name": "usergroup_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 usergroup.id；班级范围，必须与 org_id 一致",
+          "classification": "metadata",
+          "definition_sql": "usergroup_id integer NOT NULL"
+        },
+        {
+          "name": "opens_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": null,
+          "description": "布置正常开放时间",
+          "classification": "metadata",
+          "definition_sql": "opens_at timestamptz NOT NULL"
+        },
+        {
+          "name": "due_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": null,
+          "description": "布置正常截止时间；本 Demo 明确要求截止时间",
+          "classification": "metadata",
+          "definition_sql": "due_at timestamptz NOT NULL"
+        },
+        {
+          "name": "max_attempts",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": "1",
+          "description": "允许的最大尝试/运行次数；语义取决于所属表",
+          "classification": "metadata",
+          "definition_sql": "max_attempts integer NOT NULL DEFAULT 1 CHECK (max_attempts BETWEEN 1 AND 100)"
+        },
+        {
+          "name": "answer_release",
+          "type": "text",
+          "nullable": false,
+          "default_sql": "'after_due'",
+          "description": "after_due/after_effective/never；冻结答案开放规则",
+          "classification": "metadata",
+          "definition_sql": "answer_release text NOT NULL DEFAULT 'after_due' CHECK (answer_release IN ('after_due','after_effective','never'))"
+        },
+        {
+          "name": "allow_review",
+          "type": "boolean",
+          "nullable": false,
+          "default_sql": "true",
+          "description": "该布置是否允许学生申请复核",
+          "classification": "metadata",
+          "definition_sql": "allow_review boolean NOT NULL DEFAULT true"
+        },
+        {
+          "name": "rules_snapshot",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "任务发布时实际生效规则快照，供回放与显示",
+          "classification": "educational_body",
+          "definition_sql": "rules_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(rules_snapshot)='object')"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "default_sql": "'assigned'",
+          "description": "受控生命周期状态；API仍须验证允许转移与权限",
+          "classification": "metadata",
+          "definition_sql": "status text NOT NULL DEFAULT 'assigned' CHECK (status IN ('assigned','paused','closed','archived'))"
+        },
+        {
+          "name": "state_reason",
+          "type": "text",
+          "nullable": false,
+          "default_sql": "''",
+          "description": "暂停、关闭、归档等状态变更原因",
+          "classification": "metadata",
+          "definition_sql": "state_reason text NOT NULL DEFAULT ''"
+        },
+        {
+          "name": "state_changed_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "布置状态最近变更时间",
+          "classification": "metadata",
+          "definition_sql": "state_changed_at timestamptz NOT NULL DEFAULT now()"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；创建主体",
+          "classification": "metadata",
+          "definition_sql": "created_by uuid NOT NULL"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,course_id,org_id)",
+        "UNIQUE (id,resource_version_id,rubric_version_id,course_id,org_id)",
+        "UNIQUE (id,usergroup_id,course_id,org_id)",
+        "UNIQUE (assignment_id,version)",
+        "FOREIGN KEY (assignment_id,course_id,org_id) REFERENCES public.assignment(id,course_id,org_id)",
+        "FOREIGN KEY (resource_version_id,course_id,org_id) REFERENCES ea.resource_version(id,course_id,org_id)",
+        "FOREIGN KEY (rubric_version_id,course_id,org_id) REFERENCES ea.rubric_version(id,course_id,org_id)",
+        "FOREIGN KEY (policy_version_id,org_id) REFERENCES ea.policy_version(id,org_id)",
+        "FOREIGN KEY (publication_event_id,resource_version_id,usergroup_id,course_id,org_id) REFERENCES ea.publication_event(id,resource_version_id,usergroup_id,course_id,org_id)",
+        "FOREIGN KEY (created_by,org_id) REFERENCES ea.principal(id,org_id)",
+        "CHECK (due_at > opens_at)",
+        "CHECK (status='assigned' OR length(btrim(state_reason))>0)"
+      ],
+      "indexes_sql": []
+    },
+    {
+      "name": "ea.assignment_recipient",
+      "authority": "education-agent extension",
+      "purpose": "布置时学生及班级快照，不替代当前授权",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "binding_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "冻结布置版本，同课程组织",
+          "classification": "metadata",
+          "definition_sql": "binding_id uuid NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL REFERENCES public.\"user\"(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "usergroup_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 usergroup.id；班级范围，必须与 org_id 一致",
+          "classification": "metadata",
+          "definition_sql": "usergroup_id integer NOT NULL"
+        },
+        {
+          "name": "membership_snapshot",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "布置时组织/班级/课程授权引用快照；不能授予现在的访问权",
+          "classification": "metadata",
+          "definition_sql": "membership_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(membership_snapshot)='object')"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,student_id,binding_id,course_id,org_id)",
+        "UNIQUE (binding_id,student_id)",
+        "FOREIGN KEY (binding_id,usergroup_id,course_id,org_id) REFERENCES ea.assignment_binding(id,usergroup_id,course_id,org_id)"
+      ],
+      "indexes_sql": []
+    },
+    {
+      "name": "ea.resubmission_grant",
+      "authority": "education-agent extension",
+      "purpose": "特定学生任务补交/订正授权与有效期、额度",
+      "mutability": "state_columns_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "recipient_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "该布置的具体收件学生记录",
+          "classification": "metadata",
+          "definition_sql": "recipient_id uuid NOT NULL"
+        },
+        {
+          "name": "binding_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "冻结布置版本，同课程组织",
+          "classification": "metadata",
+          "definition_sql": "binding_id uuid NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL"
+        },
+        {
+          "name": "grant_kind",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "late 补交或 correction 订正",
+          "classification": "metadata",
+          "definition_sql": "grant_kind text NOT NULL CHECK (grant_kind IN ('late','correction'))"
+        },
+        {
+          "name": "starts_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": null,
+          "description": "授权/同意有效开始时间，服务端时钟",
+          "classification": "metadata",
+          "definition_sql": "starts_at timestamptz NOT NULL"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": null,
+          "description": "有效截止时间；NULL 仅在允许无限期的对象上使用",
+          "classification": "metadata",
+          "definition_sql": "expires_at timestamptz NOT NULL"
+        },
+        {
+          "name": "allowed_attempts",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "本补交/订正授权最多占用的新尝试槽位数",
+          "classification": "metadata",
+          "definition_sql": "allowed_attempts integer NOT NULL CHECK (allowed_attempts BETWEEN 1 AND 20)"
+        },
+        {
+          "name": "granted_by",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；授予主体，服务另验委派权限",
+          "classification": "metadata",
+          "definition_sql": "granted_by uuid NOT NULL"
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "非空业务理由；教学正文理由不得复制到运维审计",
+          "classification": "metadata",
+          "definition_sql": "reason text NOT NULL CHECK (length(btrim(reason)) > 0)"
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "撤销时间；非 NULL 后不得复活此记录",
+          "classification": "metadata",
+          "definition_sql": "revoked_at timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,recipient_id,student_id,binding_id,course_id,org_id)",
+        "FOREIGN KEY (recipient_id,student_id,binding_id,course_id,org_id) REFERENCES ea.assignment_recipient(id,student_id,binding_id,course_id,org_id)",
+        "FOREIGN KEY (granted_by,org_id) REFERENCES ea.principal(id,org_id)",
+        "CHECK (expires_at > starts_at)"
+      ],
+      "indexes_sql": [
+        "CREATE INDEX ix_resubmission_active ON ea.resubmission_grant(recipient_id,expires_at) WHERE revoked_at IS NULL;"
+      ]
+    },
+    {
+      "name": "ea.attempt",
+      "authority": "education-agent extension",
+      "purpose": "冻结题目版本的尝试及未提交私人草稿",
+      "mutability": "private_draft_then_immutable",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "recipient_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "该布置的具体收件学生记录",
+          "classification": "metadata",
+          "definition_sql": "recipient_id uuid NOT NULL"
+        },
+        {
+          "name": "binding_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "冻结布置版本，同课程组织",
+          "classification": "metadata",
+          "definition_sql": "binding_id uuid NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL"
+        },
+        {
+          "name": "attempt_no",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "该收件学生的连续尝试序号",
+          "classification": "metadata",
+          "definition_sql": "attempt_no integer NOT NULL CHECK (attempt_no > 0)"
+        },
+        {
+          "name": "resource_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "不可变资源内容版本，同课程组织",
+          "classification": "metadata",
+          "definition_sql": "resource_version_id uuid NOT NULL"
+        },
+        {
+          "name": "rubric_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "冻结评分量规版本；同课程组织",
+          "classification": "metadata",
+          "definition_sql": "rubric_version_id uuid NOT NULL"
+        },
+        {
+          "name": "resubmission_grant_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "使用的补交/订正授权；常规尝试为空",
+          "classification": "metadata",
+          "definition_sql": "resubmission_grant_id uuid"
+        },
+        {
+          "name": "grant_slot",
+          "type": "integer",
+          "nullable": true,
+          "default_sql": null,
+          "description": "授权内 1..allowed_attempts 的唯一额度槽位",
+          "classification": "metadata",
+          "definition_sql": "grant_slot integer"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "default_sql": "'draft'",
+          "description": "受控生命周期状态；API仍须验证允许转移与权限",
+          "classification": "metadata",
+          "definition_sql": "status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','submitted','abandoned'))"
+        },
+        {
+          "name": "draft",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "仅学生本人的可变未提交答案 JSON；教师不可读取",
+          "classification": "educational_body",
+          "definition_sql": "draft jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(draft)='object')"
+        },
+        {
+          "name": "draft_revision",
+          "type": "bigint",
+          "nullable": false,
+          "default_sql": "0",
+          "description": "草稿乐观锁版本；条件更新，内容变更加 1",
+          "classification": "metadata",
+          "definition_sql": "draft_revision bigint NOT NULL DEFAULT 0 CHECK (draft_revision >= 0)"
+        },
+        {
+          "name": "start_key",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "开始尝试幂等键，按 recipient 隔离",
+          "classification": "metadata",
+          "definition_sql": "start_key text NOT NULL CHECK (length(start_key) BETWEEN 1 AND 200)"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "允许状态或草稿的最近保存时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "updated_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,student_id,course_id,org_id)",
+        "UNIQUE (recipient_id,attempt_no)",
+        "UNIQUE (recipient_id,start_key)",
+        "UNIQUE (resubmission_grant_id,grant_slot)",
+        "FOREIGN KEY (recipient_id,student_id,binding_id,course_id,org_id) REFERENCES ea.assignment_recipient(id,student_id,binding_id,course_id,org_id)",
+        "FOREIGN KEY (binding_id,resource_version_id,rubric_version_id,course_id,org_id) REFERENCES ea.assignment_binding(id,resource_version_id,rubric_version_id,course_id,org_id)",
+        "FOREIGN KEY (resubmission_grant_id,recipient_id,student_id,binding_id,course_id,org_id) REFERENCES ea.resubmission_grant(id,recipient_id,student_id,binding_id,course_id,org_id)",
+        "CHECK ((resubmission_grant_id IS NULL AND grant_slot IS NULL) OR (resubmission_grant_id IS NOT NULL AND grant_slot IS NOT NULL AND grant_slot > 0))"
+      ],
+      "indexes_sql": [
+        "CREATE UNIQUE INDEX uq_one_open_attempt ON ea.attempt(recipient_id) WHERE status='draft';"
+      ]
+    },
+    {
+      "name": "ea.submission",
+      "authority": "education-agent extension",
+      "purpose": "不可变正式答案快照、请求摘要和回执",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "attempt_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "唯一正式提交所属尝试，每尝试最多一条",
+          "classification": "metadata",
+          "definition_sql": "attempt_id uuid NOT NULL UNIQUE"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL"
+        },
+        {
+          "name": "receipt_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "正式提交成功回执 UUID",
+          "classification": "metadata",
+          "definition_sql": "receipt_id uuid NOT NULL UNIQUE DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "idempotency_key",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "调用幂等键；唯一范围见表约束，同键异 hash 返回 409",
+          "classification": "metadata",
+          "definition_sql": "idempotency_key text NOT NULL CHECK (length(idempotency_key) BETWEEN 1 AND 200)"
+        },
+        {
+          "name": "request_hash",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "规范化提交请求 SHA-256；同键异载荷冲突",
+          "classification": "metadata",
+          "definition_sql": "request_hash text NOT NULL CHECK (request_hash ~ '^[0-9a-f]{64}$')"
+        },
+        {
+          "name": "answer_snapshot",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "正式提交时完整答案快照；不可原地改写",
+          "classification": "educational_body",
+          "definition_sql": "answer_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(answer_snapshot)='object')"
+        },
+        {
+          "name": "provenance",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "数据来源标识：真实/演示/人工示例/模拟等；不能相互冒充",
+          "classification": "metadata",
+          "definition_sql": "provenance text NOT NULL CHECK (provenance IN ('real','demo','manual_example','simulated'))"
+        },
+        {
+          "name": "accepted_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "DB触发器写入实际接收时间；不信任客户端时间",
+          "classification": "metadata",
+          "definition_sql": "accepted_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,student_id,course_id,org_id)",
+        "UNIQUE (org_id,student_id,idempotency_key)",
+        "FOREIGN KEY (attempt_id,student_id,course_id,org_id) REFERENCES ea.attempt(id,student_id,course_id,org_id)"
+      ],
+      "indexes_sql": [
+        "CREATE INDEX ix_submission_student ON ea.submission(org_id,course_id,student_id,accepted_at DESC);"
+      ]
+    },
+    {
+      "name": "ea.evaluation",
+      "authority": "education-agent extension",
+      "purpose": "分离的规则评分、AI候选或教师判断",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "submission_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "不可变正式提交，同学生课程组织",
+          "classification": "metadata",
+          "definition_sql": "submission_id uuid NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL"
+        },
+        {
+          "name": "rubric_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "冻结评分量规版本；同课程组织",
+          "classification": "metadata",
+          "definition_sql": "rubric_version_id uuid NOT NULL"
+        },
+        {
+          "name": "policy_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "冻结策略版本；可为同组织全局策略或本课程策略",
+          "classification": "metadata",
+          "definition_sql": "policy_version_id uuid NOT NULL"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "相关同组织/课程 task_run；没有异步任务的事实允许为空",
+          "classification": "metadata",
+          "definition_sql": "task_id uuid"
+        },
+        {
+          "name": "source",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "rule/ai_suggestion/teacher；判断来源与真实数据来源是不同维度",
+          "classification": "metadata",
+          "definition_sql": "source text NOT NULL CHECK (source IN ('rule','ai_suggestion','teacher'))"
+        },
+        {
+          "name": "outcome",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "scored/needs_review/tool_error；工具异常不得当错误答案判零",
+          "classification": "metadata",
+          "definition_sql": "outcome text NOT NULL CHECK (outcome IN ('scored','needs_review','tool_error'))"
+        },
+        {
+          "name": "score",
+          "type": "numeric(10,4)",
+          "nullable": true,
+          "default_sql": null,
+          "description": "仅 scored 状态有分数，范围 0..maximum_score",
+          "classification": "metadata",
+          "definition_sql": "score numeric(10,4)"
+        },
+        {
+          "name": "maximum_score",
+          "type": "numeric(10,4)",
+          "nullable": false,
+          "default_sql": null,
+          "description": "此量规/评估的最大分值；评估必须匹配冻结量规",
+          "classification": "metadata",
+          "definition_sql": "maximum_score numeric(10,4) NOT NULL CHECK (maximum_score > 0)"
+        },
+        {
+          "name": "details",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "结构化逐题评分、来源/候选引用；API验证同提交关联",
+          "classification": "educational_body",
+          "definition_sql": "details jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(details)='object')"
+        },
+        {
+          "name": "feedback",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "教学反馈 JSON；按有效评分和阅读权限投影",
+          "classification": "educational_body",
+          "definition_sql": "feedback jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(feedback)='object')"
+        },
+        {
+          "name": "producer_version",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "规则、模型或人工批阅协议版本；缺失精确模型版本须标 unknown",
+          "classification": "metadata",
+          "definition_sql": "producer_version text NOT NULL"
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；事实对应操作者，客户端不得冒充",
+          "classification": "personal_identifier",
+          "definition_sql": "actor_id uuid NOT NULL"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,submission_id,student_id,course_id,org_id)",
+        "FOREIGN KEY (submission_id,student_id,course_id,org_id) REFERENCES ea.submission(id,student_id,course_id,org_id)",
+        "FOREIGN KEY (rubric_version_id,course_id,org_id) REFERENCES ea.rubric_version(id,course_id,org_id)",
+        "FOREIGN KEY (policy_version_id,org_id) REFERENCES ea.policy_version(id,org_id)",
+        "FOREIGN KEY (task_id,course_id,org_id) REFERENCES ea.task_run(id,course_id,org_id)",
+        "FOREIGN KEY (actor_id,org_id) REFERENCES ea.principal(id,org_id)",
+        "CHECK ((outcome='scored' AND score IS NOT NULL AND score BETWEEN 0 AND maximum_score) OR (outcome IN ('needs_review','tool_error') AND score IS NULL))"
+      ],
+      "indexes_sql": [
+        "CREATE INDEX ix_evaluation_submission ON ea.evaluation(submission_id,created_at DESC);"
+      ]
+    },
+    {
+      "name": "ea.grade_revision",
+      "authority": "education-agent extension",
+      "purpose": "唯一生效成绩链与更正历史",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "submission_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "不可变正式提交，同学生课程组织",
+          "classification": "metadata",
+          "definition_sql": "submission_id uuid NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL"
+        },
+        {
+          "name": "evaluation_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "本次生效所采用的 rule/teacher 评估；不接受 AI 候选直接生效",
+          "classification": "metadata",
+          "definition_sql": "evaluation_id uuid NOT NULL"
+        },
+        {
+          "name": "revision",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "成绩单链从 1 开始的连续修订号",
+          "classification": "metadata",
+          "definition_sql": "revision integer NOT NULL CHECK (revision > 0)"
+        },
+        {
+          "name": "supersedes_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "同提交上一生效成绩；NULL 只允许根节点",
+          "classification": "metadata",
+          "definition_sql": "supersedes_id uuid UNIQUE"
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "非空业务理由；教学正文理由不得复制到运维审计",
+          "classification": "metadata",
+          "definition_sql": "reason text NOT NULL CHECK (length(btrim(reason)) > 0)"
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；事实对应操作者，客户端不得冒充",
+          "classification": "personal_identifier",
+          "definition_sql": "actor_id uuid NOT NULL"
+        },
+        {
+          "name": "effective_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "成绩生效时间；并发顺序由修订链而非时间戳判断",
+          "classification": "metadata",
+          "definition_sql": "effective_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,student_id,course_id,org_id)",
+        "UNIQUE (id,submission_id,student_id,course_id,org_id)",
+        "UNIQUE (submission_id,revision)",
+        "UNIQUE (evaluation_id)",
+        "FOREIGN KEY (evaluation_id,submission_id,student_id,course_id,org_id) REFERENCES ea.evaluation(id,submission_id,student_id,course_id,org_id)",
+        "FOREIGN KEY (supersedes_id,submission_id,student_id,course_id,org_id) REFERENCES ea.grade_revision(id,submission_id,student_id,course_id,org_id)",
+        "FOREIGN KEY (actor_id,org_id) REFERENCES ea.principal(id,org_id)",
+        "CHECK ((revision=1 AND supersedes_id IS NULL) OR (revision>1 AND supersedes_id IS NOT NULL))"
+      ],
+      "indexes_sql": [
+        "CREATE UNIQUE INDEX uq_grade_root ON ea.grade_revision(submission_id) WHERE supersedes_id IS NULL;"
+      ]
+    },
+    {
+      "name": "ea.review_request",
+      "authority": "education-agent extension",
+      "purpose": "对确切成绩版本的复核请求及一次性结案",
+      "mutability": "state_columns_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "submission_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "不可变正式提交，同学生课程组织",
+          "classification": "metadata",
+          "definition_sql": "submission_id uuid NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL"
+        },
+        {
+          "name": "grade_revision_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "被复核或引用的精确生效成绩版本",
+          "classification": "metadata",
+          "definition_sql": "grade_revision_id uuid NOT NULL"
+        },
+        {
+          "name": "request_text",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "学生本人复核理由正文；仅授权教学范围可读",
+          "classification": "educational_body",
+          "definition_sql": "request_text text NOT NULL CHECK (length(btrim(request_text)) > 0)"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "default_sql": "'open'",
+          "description": "受控生命周期状态；API仍须验证允许转移与权限",
+          "classification": "metadata",
+          "definition_sql": "status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','retained','revised','withdrawn'))"
+        },
+        {
+          "name": "resolved_revision_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "复核更正产生的新成绩版本；保留/撤回时为空",
+          "classification": "metadata",
+          "definition_sql": "resolved_revision_id uuid"
+        },
+        {
+          "name": "resolution",
+          "type": "text",
+          "nullable": true,
+          "default_sql": null,
+          "description": "复核结案说明正文；运维审计只记理由码",
+          "classification": "educational_body",
+          "definition_sql": "resolution text"
+        },
+        {
+          "name": "resolved_by",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "复核结案主体；教师处理或学生撤回由服务验证",
+          "classification": "metadata",
+          "definition_sql": "resolved_by uuid"
+        },
+        {
+          "name": "resolved_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "一次性结案时间",
+          "classification": "metadata",
+          "definition_sql": "resolved_at timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "FOREIGN KEY (grade_revision_id,submission_id,student_id,course_id,org_id) REFERENCES ea.grade_revision(id,submission_id,student_id,course_id,org_id)",
+        "FOREIGN KEY (resolved_revision_id,submission_id,student_id,course_id,org_id) REFERENCES ea.grade_revision(id,submission_id,student_id,course_id,org_id)",
+        "FOREIGN KEY (resolved_by,org_id) REFERENCES ea.principal(id,org_id)",
+        "CHECK ((status='open' AND resolved_at IS NULL AND resolved_by IS NULL AND resolution IS NULL AND resolved_revision_id IS NULL) OR\n    (status<>'open' AND resolved_at IS NOT NULL AND resolved_by IS NOT NULL AND resolution IS NOT NULL AND length(btrim(resolution))>0))",
+        "CHECK (status<>'revised' OR (resolved_revision_id IS NOT NULL AND resolved_revision_id<>grade_revision_id))",
+        "CHECK (status NOT IN ('retained','withdrawn') OR resolved_revision_id IS NULL)"
+      ],
+      "indexes_sql": [
+        "CREATE UNIQUE INDEX uq_review_active ON ea.review_request(grade_revision_id) WHERE status='open';",
+        "CREATE INDEX ix_review_pending ON ea.review_request(org_id,course_id,created_at) WHERE status='open';"
+      ]
+    },
+    {
+      "name": "ea.note_permission",
+      "authority": "education-agent extension",
+      "purpose": "私人笔记画像用途和指定教师共享的独立同意",
+      "mutability": "state_columns_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "note_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 learner_note.id；复合 FK 匹配所有人及课程",
+          "classification": "personal_identifier",
+          "definition_sql": "note_id integer NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL"
+        },
+        {
+          "name": "purpose",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "profile_use 与 teacher_read 分开授权，互不蕴含",
+          "classification": "metadata",
+          "definition_sql": "purpose text NOT NULL CHECK (purpose IN ('profile_use','teacher_read'))"
+        },
+        {
+          "name": "grantee_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "teacher_read 指定同组织教师主体；profile_use 为空",
+          "classification": "metadata",
+          "definition_sql": "grantee_id uuid"
+        },
+        {
+          "name": "consent_revision",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同笔记用途/接受者的显式同意版本",
+          "classification": "metadata",
+          "definition_sql": "consent_revision integer NOT NULL CHECK (consent_revision > 0)"
+        },
+        {
+          "name": "starts_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "授权/同意有效开始时间，服务端时钟",
+          "classification": "metadata",
+          "definition_sql": "starts_at timestamptz NOT NULL DEFAULT now()"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "有效截止时间；NULL 仅在允许无限期的对象上使用",
+          "classification": "metadata",
+          "definition_sql": "expires_at timestamptz"
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "撤销时间；非 NULL 后不得复活此记录",
+          "classification": "metadata",
+          "definition_sql": "revoked_at timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,student_id,course_id,org_id)",
+        "UNIQUE (note_id,purpose,grantee_id,consent_revision)",
+        "FOREIGN KEY (note_id,student_id,course_id,org_id) REFERENCES public.learner_note(id,user_id,course_id,org_id)",
+        "FOREIGN KEY (grantee_id,org_id) REFERENCES ea.principal(id,org_id)",
+        "CHECK ((purpose='profile_use' AND grantee_id IS NULL) OR (purpose='teacher_read' AND grantee_id IS NOT NULL))",
+        "CHECK (expires_at IS NULL OR expires_at > starts_at)"
+      ],
+      "indexes_sql": [
+        "CREATE UNIQUE INDEX uq_note_personal_revision ON ea.note_permission(note_id,purpose,consent_revision) WHERE grantee_id IS NULL;",
+        "CREATE UNIQUE INDEX uq_note_active_teacher ON ea.note_permission(note_id,purpose,grantee_id) WHERE revoked_at IS NULL AND grantee_id IS NOT NULL;",
+        "CREATE UNIQUE INDEX uq_note_active_personal ON ea.note_permission(note_id,purpose) WHERE revoked_at IS NULL AND grantee_id IS NULL;"
+      ]
+    },
+    {
+      "name": "ea.evidence_event",
+      "authority": "education-agent extension",
+      "purpose": "知识点证据摘要和原始业务引用，明确数据/判断来源",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL REFERENCES public.\"user\"(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "knowledge_point_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同课程的知识点定义版本",
+          "classification": "metadata",
+          "definition_sql": "knowledge_point_id uuid NOT NULL"
+        },
+        {
+          "name": "grade_revision_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "被复核或引用的精确生效成绩版本",
+          "classification": "metadata",
+          "definition_sql": "grade_revision_id uuid"
+        },
+        {
+          "name": "note_permission_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "形成笔记证据时有效的 profile_use 同意；不能使用共享同意",
+          "classification": "metadata",
+          "definition_sql": "note_permission_id uuid"
+        },
+        {
+          "name": "source_type",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "effective_grade/consented_note/observation；决定可用 FK",
+          "classification": "metadata",
+          "definition_sql": "source_type text NOT NULL CHECK (source_type IN ('effective_grade','consented_note','observation'))"
+        },
+        {
+          "name": "provenance",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "数据来源标识：真实/演示/人工示例/模拟等；不能相互冒充",
+          "classification": "metadata",
+          "definition_sql": "provenance text NOT NULL CHECK (provenance IN ('real','demo','manual_example','simulated'))"
+        },
+        {
+          "name": "judgment_source",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "rule/model/teacher/self_report；不能推断为真实学习增益",
+          "classification": "metadata",
+          "definition_sql": "judgment_source text NOT NULL CHECK (judgment_source IN ('rule','model','teacher','self_report'))"
+        },
+        {
+          "name": "source_event_key",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "源事件的稳定幂等标识，按组织+知识点去重",
+          "classification": "metadata",
+          "definition_sql": "source_event_key text NOT NULL CHECK (length(source_event_key) BETWEEN 1 AND 200)"
+        },
+        {
+          "name": "summary",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "证据摘要；不包含完整答案、笔记或私聊全文",
+          "classification": "educational_body",
+          "definition_sql": "summary jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(summary)='object')"
+        },
+        {
+          "name": "observed_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": null,
+          "description": "原始证据发生时间，区别于入库创建时间",
+          "classification": "metadata",
+          "definition_sql": "observed_at timestamptz NOT NULL"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,student_id,course_id,org_id)",
+        "UNIQUE (org_id,source_event_key,knowledge_point_id)",
+        "FOREIGN KEY (course_id,org_id) REFERENCES public.course(id,org_id)",
+        "FOREIGN KEY (knowledge_point_id,course_id,org_id) REFERENCES ea.knowledge_point(id,course_id,org_id)",
+        "FOREIGN KEY (grade_revision_id,student_id,course_id,org_id) REFERENCES ea.grade_revision(id,student_id,course_id,org_id)",
+        "FOREIGN KEY (note_permission_id,student_id,course_id,org_id) REFERENCES ea.note_permission(id,student_id,course_id,org_id)",
+        "CHECK ((source_type='effective_grade' AND grade_revision_id IS NOT NULL AND note_permission_id IS NULL) OR\n         (source_type='consented_note' AND note_permission_id IS NOT NULL AND grade_revision_id IS NULL) OR\n         (source_type='observation' AND grade_revision_id IS NULL AND note_permission_id IS NULL))"
+      ],
+      "indexes_sql": [
+        "CREATE INDEX ix_evidence_student ON ea.evidence_event(org_id,course_id,student_id,observed_at DESC);"
+      ]
+    },
+    {
+      "name": "ea.profile_version",
+      "authority": "education-agent extension",
+      "purpose": "课程内学习状态成功版本，明确规则统计和研究原型边界",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL REFERENCES public.\"user\"(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "从 1 开始的逻辑版本号，不能覆盖已有版本",
+          "classification": "metadata",
+          "definition_sql": "version integer NOT NULL CHECK (version > 0)"
+        },
+        {
+          "name": "previous_version_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "同一版本链前驱；NULL 表示首版",
+          "classification": "metadata",
+          "definition_sql": "previous_version_id uuid UNIQUE"
+        },
+        {
+          "name": "trigger_type",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "画像触发类型：grade_effective/grade_corrected/note_evidence/consent_revoked/rebuild",
+          "classification": "metadata",
+          "definition_sql": "trigger_type text NOT NULL CHECK (trigger_type IN ('grade_effective','grade_corrected','note_evidence','consent_revoked','rebuild'))"
+        },
+        {
+          "name": "trigger_event_key",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "稳定领域事件键；同学生课程方法下去重，允许无新成绩的撤权重算",
+          "classification": "metadata",
+          "definition_sql": "trigger_event_key text NOT NULL CHECK (length(trigger_event_key) BETWEEN 1 AND 200)"
+        },
+        {
+          "name": "trigger_grade_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "评分生效/更正触发必填有效成绩版本；其他触发类型为空",
+          "classification": "metadata",
+          "definition_sql": "trigger_grade_id uuid"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "相关同组织/课程 task_run；没有异步任务的事实允许为空",
+          "classification": "metadata",
+          "definition_sql": "task_id uuid NOT NULL"
+        },
+        {
+          "name": "method_kind",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "rule_statistics 或 research_prototype，明确产品统计/研究原型边界",
+          "classification": "metadata",
+          "definition_sql": "method_kind text NOT NULL CHECK (method_kind IN ('rule_statistics','research_prototype'))"
+        },
+        {
+          "name": "capability_status",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "connected/not_connected/unvalidated；接通不等于效果已验证",
+          "classification": "metadata",
+          "definition_sql": "capability_status text NOT NULL CHECK (capability_status IN ('connected','not_connected','unvalidated'))"
+        },
+        {
+          "name": "method_version",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "状态或推荐算法/原型版本，纳入幂等范围",
+          "classification": "metadata",
+          "definition_sql": "method_version text NOT NULL"
+        },
+        {
+          "name": "provenance",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "数据来源标识：真实/演示/人工示例/模拟等；不能相互冒充",
+          "classification": "metadata",
+          "definition_sql": "provenance text NOT NULL CHECK (provenance IN ('real','demo','manual_example','simulated','mixed'))"
+        },
+        {
+          "name": "evidence_manifest",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'[]'::jsonb",
+          "description": "[{evidence_id,...}]；DB逐项检查同学生课程组织，服务检查有效/撤销状态",
+          "classification": "metadata",
+          "definition_sql": "evidence_manifest jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(evidence_manifest)='array')"
+        },
+        {
+          "name": "states",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "知识点UUID到状态对象映射，state仅good/bad/unknown/conflict；禁止虚构百分比",
+          "classification": "educational_body",
+          "definition_sql": "states jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(states)='object')"
+        },
+        {
+          "name": "research_fields",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "研究字段对象；每项必须含status/source/method_version，规则统计时必须为空",
+          "classification": "educational_body",
+          "definition_sql": "research_fields jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(research_fields)='object')"
+        },
+        {
+          "name": "input_hash",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "规范化输入清单的 SHA-256；用于重复请求冲突和重算追踪",
+          "classification": "metadata",
+          "definition_sql": "input_hash text NOT NULL CHECK (input_hash ~ '^[0-9a-f]{64}$')"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,student_id,course_id,org_id)",
+        "UNIQUE (org_id,course_id,student_id,version)",
+        "UNIQUE (org_id,course_id,student_id,trigger_event_key,method_version)",
+        "FOREIGN KEY (course_id,org_id) REFERENCES public.course(id,org_id)",
+        "FOREIGN KEY (previous_version_id,student_id,course_id,org_id) REFERENCES ea.profile_version(id,student_id,course_id,org_id)",
+        "FOREIGN KEY (trigger_grade_id,student_id,course_id,org_id) REFERENCES ea.grade_revision(id,student_id,course_id,org_id)",
+        "FOREIGN KEY (task_id,course_id,org_id) REFERENCES ea.task_run(id,course_id,org_id)",
+        "CHECK ((version=1 AND previous_version_id IS NULL) OR (version>1 AND previous_version_id IS NOT NULL))",
+        "CHECK ((trigger_type IN ('grade_effective','grade_corrected') AND trigger_grade_id IS NOT NULL) OR\n         (trigger_type IN ('note_evidence','consent_revoked','rebuild') AND trigger_grade_id IS NULL))",
+        "CHECK (method_kind<>'rule_statistics' OR research_fields='{}'::jsonb)"
+      ],
+      "indexes_sql": [
+        "CREATE UNIQUE INDEX uq_profile_root ON ea.profile_version(org_id,course_id,student_id) WHERE previous_version_id IS NULL;"
+      ]
+    },
+    {
+      "name": "ea.recommendation_version",
+      "authority": "education-agent extension",
+      "purpose": "指定画像版本的推荐结果集",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL"
+        },
+        {
+          "name": "profile_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "生成推荐/干预时所依据的同学生课程画像版本",
+          "classification": "metadata",
+          "definition_sql": "profile_version_id uuid NOT NULL"
+        },
+        {
+          "name": "method_version",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "状态或推荐算法/原型版本，纳入幂等范围",
+          "classification": "metadata",
+          "definition_sql": "method_version text NOT NULL"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "相关同组织/课程 task_run；没有异步任务的事实允许为空",
+          "classification": "metadata",
+          "definition_sql": "task_id uuid NOT NULL"
+        },
+        {
+          "name": "provenance",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "数据来源标识：真实/演示/人工示例/模拟等；不能相互冒充",
+          "classification": "metadata",
+          "definition_sql": "provenance text NOT NULL CHECK (provenance IN ('real','demo','manual_example','simulated','mixed'))"
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "推荐结果 ready/no_content；失败在 task_run 中显示，不写假成功",
+          "classification": "metadata",
+          "definition_sql": "state text NOT NULL CHECK (state IN ('ready','no_content'))"
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "非空业务理由；教学正文理由不得复制到运维审计",
+          "classification": "metadata",
+          "definition_sql": "reason text NOT NULL"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (id,student_id,course_id,org_id)",
+        "UNIQUE (profile_version_id,method_version)",
+        "FOREIGN KEY (profile_version_id,student_id,course_id,org_id) REFERENCES ea.profile_version(id,student_id,course_id,org_id)",
+        "FOREIGN KEY (task_id,course_id,org_id) REFERENCES ea.task_run(id,course_id,org_id)"
+      ],
+      "indexes_sql": []
+    },
+    {
+      "name": "ea.recommendation_item",
+      "authority": "education-agent extension",
+      "purpose": "有外键的推荐目标、证据与理由",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL"
+        },
+        {
+          "name": "recommendation_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "该项/干预对应的不可变推荐集合",
+          "classification": "metadata",
+          "definition_sql": "recommendation_version_id uuid NOT NULL"
+        },
+        {
+          "name": "rank",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "推荐集合内正整数顺序，不代表学生排名",
+          "classification": "metadata",
+          "definition_sql": "rank integer NOT NULL CHECK (rank > 0)"
+        },
+        {
+          "name": "knowledge_point_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同课程的知识点定义版本",
+          "classification": "metadata",
+          "definition_sql": "knowledge_point_id uuid NOT NULL"
+        },
+        {
+          "name": "evidence_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "推荐原因所引用的同学生课程证据",
+          "classification": "metadata",
+          "definition_sql": "evidence_id uuid NOT NULL"
+        },
+        {
+          "name": "resource_version_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "不可变资源内容版本，同课程组织",
+          "classification": "metadata",
+          "definition_sql": "resource_version_id uuid"
+        },
+        {
+          "name": "binding_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "冻结布置版本，同课程组织",
+          "classification": "metadata",
+          "definition_sql": "binding_id uuid"
+        },
+        {
+          "name": "recipient_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "该布置的具体收件学生记录",
+          "classification": "metadata",
+          "definition_sql": "recipient_id uuid"
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "非空业务理由；教学正文理由不得复制到运维审计",
+          "classification": "metadata",
+          "definition_sql": "reason text NOT NULL CHECK (length(btrim(reason)) > 0)"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (recommendation_version_id,rank)",
+        "FOREIGN KEY (recommendation_version_id,student_id,course_id,org_id) REFERENCES ea.recommendation_version(id,student_id,course_id,org_id)",
+        "FOREIGN KEY (knowledge_point_id,course_id,org_id) REFERENCES ea.knowledge_point(id,course_id,org_id)",
+        "FOREIGN KEY (evidence_id,student_id,course_id,org_id) REFERENCES ea.evidence_event(id,student_id,course_id,org_id)",
+        "FOREIGN KEY (resource_version_id,course_id,org_id) REFERENCES ea.resource_version(id,course_id,org_id)",
+        "FOREIGN KEY (recipient_id,student_id,binding_id,course_id,org_id) REFERENCES ea.assignment_recipient(id,student_id,binding_id,course_id,org_id)",
+        "CHECK ((resource_version_id IS NOT NULL AND binding_id IS NULL AND recipient_id IS NULL) OR\n         (resource_version_id IS NULL AND binding_id IS NOT NULL AND recipient_id IS NOT NULL))"
+      ],
+      "indexes_sql": []
+    },
+    {
+      "name": "ea.intervention_event",
+      "authority": "education-agent extension",
+      "purpose": "教师对后续教学安排的干预及理由",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer NOT NULL"
+        },
+        {
+          "name": "student_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 user.id；业务学生身份，必须由会话/对象关系确定",
+          "classification": "personal_identifier",
+          "definition_sql": "student_id integer NOT NULL"
+        },
+        {
+          "name": "profile_version_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "生成推荐/干预时所依据的同学生课程画像版本",
+          "classification": "metadata",
+          "definition_sql": "profile_version_id uuid NOT NULL"
+        },
+        {
+          "name": "recommendation_version_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "该项/干预对应的不可变推荐集合",
+          "classification": "metadata",
+          "definition_sql": "recommendation_version_id uuid"
+        },
+        {
+          "name": "target_binding_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "教师干预的后续布置目标；服务拒绝替换已开始尝试",
+          "classification": "metadata",
+          "definition_sql": "target_binding_id uuid"
+        },
+        {
+          "name": "action",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "业务动作枚举；不能从上游角色名隐式推导",
+          "classification": "metadata",
+          "definition_sql": "action text NOT NULL CHECK (action IN ('assign_next','adjust_next','record_support'))"
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "非空业务理由；教学正文理由不得复制到运维审计",
+          "classification": "metadata",
+          "definition_sql": "reason text NOT NULL CHECK (length(btrim(reason)) > 0)"
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；事实对应操作者，客户端不得冒充",
+          "classification": "personal_identifier",
+          "definition_sql": "actor_id uuid NOT NULL"
+        },
+        {
+          "name": "details",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "结构化逐题评分、来源/候选引用；API验证同提交关联",
+          "classification": "educational_body",
+          "definition_sql": "details jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(details)='object')"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "FOREIGN KEY (profile_version_id,student_id,course_id,org_id) REFERENCES ea.profile_version(id,student_id,course_id,org_id)",
+        "FOREIGN KEY (recommendation_version_id,student_id,course_id,org_id) REFERENCES ea.recommendation_version(id,student_id,course_id,org_id)",
+        "FOREIGN KEY (target_binding_id,course_id,org_id) REFERENCES ea.assignment_binding(id,course_id,org_id)",
+        "FOREIGN KEY (actor_id,org_id) REFERENCES ea.principal(id,org_id)"
+      ],
+      "indexes_sql": []
+    },
+    {
+      "name": "ea.outbox_event",
+      "authority": "education-agent extension",
+      "purpose": "与业务同事务的出站事件或命令幂等回执",
+      "mutability": "state_columns_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": "gen_random_uuid()",
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id uuid PRIMARY KEY DEFAULT gen_random_uuid()"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL REFERENCES public.organization(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": true,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer"
+        },
+        {
+          "name": "event_type",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "领域事件或 command.receipt；决定消费者/幂等命名空间",
+          "classification": "metadata",
+          "definition_sql": "event_type text NOT NULL"
+        },
+        {
+          "name": "aggregate_type",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "事件聚合对象类型白名单，应用校验",
+          "classification": "metadata",
+          "definition_sql": "aggregate_type text NOT NULL"
+        },
+        {
+          "name": "aggregate_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "聚合对象UUID；多态引用须应用校验，不宣称数据库多态FK",
+          "classification": "metadata",
+          "definition_sql": "aggregate_id uuid NOT NULL"
+        },
+        {
+          "name": "deduplication_key",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "事件幂等键；命令回执必须包含actorId:operation:key",
+          "classification": "metadata",
+          "definition_sql": "deduplication_key text NOT NULL"
+        },
+        {
+          "name": "payload",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "仅元数据引用；command.receipt含request_hash/status/result_refs，不存正文",
+          "classification": "metadata",
+          "definition_sql": "payload jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(payload)='object')"
+        },
+        {
+          "name": "available_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "下一次允许投递的时间",
+          "classification": "metadata",
+          "definition_sql": "available_at timestamptz NOT NULL DEFAULT now()"
+        },
+        {
+          "name": "claimed_until",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "出站消费者租约",
+          "classification": "metadata",
+          "definition_sql": "claimed_until timestamptz"
+        },
+        {
+          "name": "delivery_attempts",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": "0",
+          "description": "已尝试投递次数，有限上限；超过进入死信",
+          "classification": "metadata",
+          "definition_sql": "delivery_attempts integer NOT NULL DEFAULT 0 CHECK (delivery_attempts BETWEEN 0 AND 100)"
+        },
+        {
+          "name": "published_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "实际投递成功时间；command.receipt表示命令回执已完成且不投递",
+          "classification": "metadata",
+          "definition_sql": "published_at timestamptz"
+        },
+        {
+          "name": "dead_letter_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default_sql": null,
+          "description": "无法自动恢复的出站事件进入死信时间",
+          "classification": "metadata",
+          "definition_sql": "dead_letter_at timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "UNIQUE (org_id,event_type,deduplication_key)",
+        "FOREIGN KEY (course_id,org_id) REFERENCES public.course(id,org_id)",
+        "CHECK (published_at IS NULL OR dead_letter_at IS NULL)"
+      ],
+      "indexes_sql": [
+        "CREATE INDEX ix_outbox_dispatch ON ea.outbox_event(available_at,created_at) WHERE published_at IS NULL AND dead_letter_at IS NULL;"
+      ]
+    },
+    {
+      "name": "ea.audit_event",
+      "authority": "education-agent extension",
+      "purpose": "只追加操作元数据，不存学生/模型正文或凭据",
+      "mutability": "append_only",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default_sql": null,
+          "description": "扩展对象主键；除审计为 BIGINT identity 外均为 UUID",
+          "classification": "metadata",
+          "definition_sql": "id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
+        },
+        {
+          "name": "org_id",
+          "type": "integer",
+          "nullable": false,
+          "default_sql": null,
+          "description": "上游 organization.id；所有组织范围判断的显式维度",
+          "classification": "metadata",
+          "definition_sql": "org_id integer NOT NULL REFERENCES public.organization(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "course_id",
+          "type": "integer",
+          "nullable": true,
+          "default_sql": null,
+          "description": "上游 course.id；通过复合 FK 与 org_id 绑定",
+          "classification": "metadata",
+          "definition_sql": "course_id integer"
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "同组织 ea.principal.id；事实对应操作者，客户端不得冒充",
+          "classification": "personal_identifier",
+          "definition_sql": "actor_id uuid NOT NULL"
+        },
+        {
+          "name": "action",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "业务动作枚举；不能从上游角色名隐式推导",
+          "classification": "metadata",
+          "definition_sql": "action text NOT NULL"
+        },
+        {
+          "name": "target_type",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "审计对象类型白名单",
+          "classification": "metadata",
+          "definition_sql": "target_type text NOT NULL"
+        },
+        {
+          "name": "target_id",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "审计对象编号文本；仅追踪用途，不是正文访问许可",
+          "classification": "metadata",
+          "definition_sql": "target_id text NOT NULL"
+        },
+        {
+          "name": "request_id",
+          "type": "uuid",
+          "nullable": false,
+          "default_sql": null,
+          "description": "跨API/任务的请求追踪UUID",
+          "classification": "metadata",
+          "definition_sql": "request_id uuid NOT NULL"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "nullable": true,
+          "default_sql": null,
+          "description": "相关同组织/课程 task_run；没有异步任务的事实允许为空",
+          "classification": "metadata",
+          "definition_sql": "task_id uuid"
+        },
+        {
+          "name": "before_version",
+          "type": "text",
+          "nullable": true,
+          "default_sql": null,
+          "description": "敏感变更前版本编号，禁止复制原正文",
+          "classification": "metadata",
+          "definition_sql": "before_version text"
+        },
+        {
+          "name": "after_version",
+          "type": "text",
+          "nullable": true,
+          "default_sql": null,
+          "description": "敏感变更后版本编号，禁止复制新正文",
+          "classification": "metadata",
+          "definition_sql": "after_version text"
+        },
+        {
+          "name": "reason_code",
+          "type": "text",
+          "nullable": false,
+          "default_sql": null,
+          "description": "用于运维审计的非敏感结构化原因码",
+          "classification": "metadata",
+          "definition_sql": "reason_code text NOT NULL"
+        },
+        {
+          "name": "metadata",
+          "type": "jsonb",
+          "nullable": false,
+          "default_sql": "'{}'::jsonb",
+          "description": "白名单审计元数据，禁止答案/模型全文/密钥/密码/令牌",
+          "classification": "metadata",
+          "definition_sql": "metadata jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(metadata)='object')"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default_sql": "now()",
+          "description": "记录创建时间，UTC timestamptz",
+          "classification": "metadata",
+          "definition_sql": "created_at timestamptz NOT NULL DEFAULT now()"
+        }
+      ],
+      "constraints_sql": [
+        "FOREIGN KEY (course_id,org_id) REFERENCES public.course(id,org_id)",
+        "FOREIGN KEY (actor_id,org_id) REFERENCES ea.principal(id,org_id)",
+        "FOREIGN KEY (task_id,org_id) REFERENCES ea.task_run(id,org_id)"
+      ],
+      "indexes_sql": [
+        "CREATE INDEX ix_audit_trace ON ea.audit_event(org_id,target_type,target_id,created_at DESC);",
+        "CREATE INDEX ix_audit_request ON ea.audit_event(request_id);"
+      ]
+    }
+  ],
+  "validation_summary": "validation-summary.json"
+}

@@ -1,0 +1,76 @@
+{
+  "upstream_repository": "https://github.com/learnhouse/learnhouse",
+  "upstream_commit": "c76cf6f64ab71ed042fe83e985d9c4ab3fa148f5",
+  "modified_files": [
+    {
+      "path": "apps/api/app.py",
+      "sha256": "40df67150871e934de308f15751c2c5add602bbd3ca16074c10cb3b8df3f44e4"
+    },
+    {
+      "path": "apps/api/src/core/events/events.py",
+      "sha256": "0887542f3796ef2ecc8415341b0c4176bfbb3e7fdcda5363a0b5c93044d9b754"
+    },
+    {
+      "path": "apps/api/src/education/__init__.py",
+      "sha256": "b149a5548fc2d937140d063e79a9925e69724f2fbcf26916203a39009cf3f423"
+    },
+    {
+      "path": "apps/api/src/education/admin_routes.py",
+      "sha256": "c9a147721ffbede629c464f25a58fb5a50ebdf0790db96a7018c80d7962aea5c"
+    },
+    {
+      "path": "apps/api/src/education/business.py",
+      "sha256": "740cf0023679cc355bca8aadb864796ba0a40ca3a7b0c68797a34fa8ba4d0805"
+    },
+    {
+      "path": "apps/api/src/education/business_routes.py",
+      "sha256": "17f9cd371a6bc20971dfa6f85fdccfcb921c2ea4cc0cd86c437ced5ec0dadc73"
+    },
+    {
+      "path": "apps/api/src/education/business_schema.json",
+      "sha256": "4e007e9b7dda54de4e3e7d98922446b77105925339a66d24f635b64d2ec27543"
+    },
+    {
+      "path": "apps/api/src/education/note_routes.py",
+      "sha256": "3ce3646c3dbe25cea7ce420953326de78733705b0296679746eb2a0f5d87f612"
+    },
+    {
+      "path": "apps/api/src/education/router.py",
+      "sha256": "82e8c04be051549549cb9fbd77cf595b6d589897ccaabeb88540e663ea574db6"
+    },
+    {
+      "path": "apps/api/src/education/security.py",
+      "sha256": "5547595d170c8e96d6befecec170ab92786b875bcfa13a53af39186c72d6f298"
+    },
+    {
+      "path": "apps/web/app/education/[[...path]]/page.tsx",
+      "sha256": "9924b199c148bb3a2f3a25ccfdc5d4b64302de18229f938d8aa054219835033b"
+    },
+    {
+      "path": "apps/web/components/Providers.tsx",
+      "sha256": "0a39de9ad4c5e21efdbea62cee83ceab8965aab344e43d06c2c13afb5e1f720f"
+    },
+    {
+      "path": "apps/web/components/education/EducationApp.tsx",
+      "sha256": "346b196a4d90397e352bd56b11366147372798a580fd79c7dd81965ec333c7a8"
+    },
+    {
+      "path": "apps/web/components/education/api.ts",
+      "sha256": "a2479ee04a631f3dc4bd604089fafbd21c7cb31ecd12107985f42b5d85243466"
+    },
+    {
+      "path": "apps/web/components/education/education.css",
+      "sha256": "9fcfec313bd6c17146857624ecbf7ff4657af2241166d574396e4249320a576b"
+    },
+    {
+      "path": "apps/web/next.config.js",
+      "sha256": "cc4389341797c5baaf1b9b1f71c37fa7aa7d24be86a25684da2d432880b7f931"
+    },
+    {
+      "path": "apps/web/proxy.ts",
+      "sha256": "54b9d2e22484f9fa7385e1dc76f263116f55495655228b7c4222c4282267c29f"
+    }
+  ],
+  "enterprise_implementation_included": false,
+  "runtime_credentials_included": false
+}

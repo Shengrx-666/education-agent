@@ -1,0 +1,173 @@
+{
+  "generated_at": "2026-11-20T03:56:16.954Z",
+  "base_url": "http://localhost:3300",
+  "checks": [
+    {
+      "name": "teacher_a UI login",
+      "passed": true
+    },
+    {
+      "name": "teacher-desktop no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "teacher-mobile no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "teacher-resource-publication no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "teacher generate/check/review/publish/bind",
+      "passed": true
+    },
+    {
+      "name": "teacher-assignment no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "student_a UI login",
+      "passed": true
+    },
+    {
+      "name": "student-desktop no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "student-mobile no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "student-attempt no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "student draft/save/submit/result",
+      "passed": true
+    },
+    {
+      "name": "student-result no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "teacher item scoring and effective grade revision",
+      "passed": true
+    },
+    {
+      "name": "teacher-grading no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "student review request and teacher retain resolution",
+      "passed": true
+    },
+    {
+      "name": "student-review-result no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "admin UI login",
+      "passed": true
+    },
+    {
+      "name": "admin-desktop no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "admin-mobile no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "admin accounts navigation",
+      "passed": true
+    },
+    {
+      "name": "admin access navigation",
+      "passed": true
+    },
+    {
+      "name": "admin policies navigation",
+      "passed": true
+    },
+    {
+      "name": "admin operations navigation",
+      "passed": true
+    },
+    {
+      "name": "admin audit navigation",
+      "passed": true
+    },
+    {
+      "name": "admin-audit no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "teacher UI logout",
+      "passed": true
+    },
+    {
+      "name": "student UI logout",
+      "passed": true
+    },
+    {
+      "name": "admin UI logout",
+      "passed": true
+    },
+    {
+      "name": "student-mobile clean mobile viewport",
+      "passed": true
+    },
+    {
+      "name": "teacher-mobile clean mobile viewport",
+      "passed": true
+    },
+    {
+      "name": "review revise atomically applies new grade and closes request",
+      "passed": true
+    },
+    {
+      "name": "private note writes and re-reads actual stored content",
+      "passed": true
+    },
+    {
+      "name": "teacher records evidence-based support event",
+      "passed": true
+    },
+    {
+      "name": "admin-mobile clean mobile viewport",
+      "passed": true
+    },
+    {
+      "name": "admin real course/class grant and revoke with reason",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "screenshots/teacher-desktop.png",
+    "screenshots/teacher-mobile.png",
+    "screenshots/teacher-resource-publication.png",
+    "screenshots/teacher-assignment.png",
+    "screenshots/student-desktop.png",
+    "screenshots/student-mobile.png",
+    "screenshots/student-attempt.png",
+    "screenshots/student-result.png",
+    "screenshots/teacher-grading.png",
+    "screenshots/student-review-result.png",
+    "screenshots/admin-desktop.png",
+    "screenshots/admin-mobile.png",
+    "screenshots/admin-audit.png",
+    "screenshots/login-desktop.png",
+    "screenshots/student-notes.png",
+    "screenshots/student-learning-state.png",
+    "screenshots/teacher-learning-state.png",
+    "screenshots/admin-access.png"
+  ],
+  "binding_id": "34df7d26-b36f-44d7-9c55-dd0c2267ceb0",
+  "submission_id": "73258740-4e9c-4922-8dd0-faff7fd2d8d2",
+  "updated_at": "2026-11-20T04:02:34.190Z",
+  "test_harness_adjustments": [
+    "测试定位使用可访问名称，已修正 select 标签精确匹配；完成后重验授权与撤销。"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-20",
+  "product_baseline": "V2.0",
+  "stage_1": {
+    "status": "completed_in_documented_scope",
+    "upstream_auth_checks": 8,
+    "login_browser": "passed",
+    "public_tables": 106
+  },
+  "stage_2": {
+    "status": "design_and_schema_validation_completed",
+    "extension_tables": 26,
+    "columns": 350,
+    "operations": 41,
+    "pages": 28,
+    "constraint_assertions": 37,
+    "real_upstream_structure_copy": "DDL COMMIT; no business data"
+  },
+  "stage_3": {
+    "status": "adapter_preparation_only",
+    "offline_tests": 30,
+    "real_cli_previews": 4,
+    "complete_v2_demo": false,
+    "web_integrated": false,
+    "real_model_calls": 0
+  },
+  "stage_4": {
+    "status": "contract_review_completed_integration_tests_pending",
+    "design_findings_resolved_or_gated": 8,
+    "static_cross_checks": 14,
+    "request_schema_cases": 21,
+    "runtime_cases_not_run": 18
+  },
+  "external_publication": false,
+  "github_push": false,
+  "student_code_execution": false
+}

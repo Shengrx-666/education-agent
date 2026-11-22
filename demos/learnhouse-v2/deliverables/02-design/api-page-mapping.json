@@ -1,0 +1,1503 @@
+{
+  "version": "0.1.0-design",
+  "date": "2026-11-20",
+  "base_path": "/api/v1/education",
+  "operation_count": 41,
+  "write_operation_count": 23,
+  "schema_sql_sha256_at_generation": "fad3fba28d7f7933fc05b87b57cb5a4f9f0dba4bf37f530bbc600531ce3b4616",
+  "id_mapping": {
+    "courseId": "public.course.id integer",
+    "activityId": "public.activity.id integer；上游笔记接口使用activity_uuid，课程DTO同时提供",
+    "classId": "public.usergroup.id integer",
+    "assignmentId": "V2页面路由映射ea.assignment_binding.id uuid；不要与public.assignment.id integer混淆，响应保留assignment_id作桥接",
+    "resourceId": "ea.resource.id uuid",
+    "generationId": "ea.task_run.id uuid",
+    "attemptId": "ea.attempt.id uuid",
+    "submissionId": "ea.submission.id uuid",
+    "student_id": "public.user.id integer",
+    "principal_id": "ea.principal.id uuid",
+    "audit_id": "ea.audit_event.id bigint，JSON中十进制字符串"
+  },
+  "operations": [
+    {
+      "operationId": "educationSession",
+      "summary": "读取真实会话与可切换授权视图",
+      "pages": [
+        "C01",
+        "C02",
+        "S01",
+        "T01",
+        "A01"
+      ],
+      "requirements": [
+        "AC01",
+        "P01",
+        "P02"
+      ],
+      "tables": [
+        "ea.principal",
+        "ea.action_grant"
+      ],
+      "preconditions": "拒绝AnonymousUser、APITokenUser、BackofficeAPITokenUser及未知类型；拒绝disabled principal；只有PublicUser cookie会话。",
+      "method": "GET",
+      "path": "/api/v1/education/session",
+      "permission": "authenticated human",
+      "request_schema": null,
+      "response_schema": "SessionView",
+      "write": false
+    },
+    {
+      "operationId": "listEducationCourses",
+      "summary": "列出本人可访问课程元数据",
+      "pages": [
+        "S01",
+        "S02",
+        "T01",
+        "T02",
+        "A01"
+      ],
+      "requirements": [
+        "P03",
+        "P05",
+        "AC02"
+      ],
+      "tables": [
+        "public.course",
+        "ea.action_grant",
+        "public.usergroupresource"
+      ],
+      "preconditions": "按org与课程范围先过滤再分页，管理员只能获元数据，列表不含description/about正文。",
+      "method": "GET",
+      "path": "/api/v1/education/courses",
+      "permission": "scoped course membership or metadata admin",
+      "request_schema": null,
+      "response_schema": "CourseList",
+      "write": false
+    },
+    {
+      "operationId": "createEducationCourse",
+      "summary": "创建课程草稿与本课程负责人",
+      "pages": [
+        "T02"
+      ],
+      "requirements": [
+        "P03",
+        "AC03"
+      ],
+      "tables": [
+        "public.course",
+        "public.resourceauthor",
+        "ea.action_grant",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁定组织课程集合ETag；只创建本org课程，不赋全组织编辑权；public=false。",
+      "method": "POST",
+      "path": "/api/v1/education/courses",
+      "permission": "course.create",
+      "request_schema": "CourseCreate",
+      "response_schema": "CourseSummary",
+      "write": true
+    },
+    {
+      "operationId": "getEducationCourse",
+      "summary": "读取授权课程结构与资源入口",
+      "pages": [
+        "S03",
+        "T03",
+        "T04",
+        "T05",
+        "T08",
+        "T09",
+        "T11"
+      ],
+      "requirements": [
+        "P04",
+        "P05",
+        "P07",
+        "AC02"
+      ],
+      "tables": [
+        "public.course",
+        "public.chapter",
+        "public.activity",
+        "ea.resource",
+        "ea.assignment_binding"
+      ],
+      "preconditions": "学生仅已发布范围；教师仅授权课程/班级；管理员无正文授权403；学生预览不得继承教师答案权。",
+      "method": "GET",
+      "path": "/api/v1/education/courses/{course_id}",
+      "permission": "content.read or authorized teacher action",
+      "request_schema": null,
+      "response_schema": "CourseDetail",
+      "write": false
+    },
+    {
+      "operationId": "updateEducationCourse",
+      "summary": "编辑课程与编排或选择允许策略",
+      "pages": [
+        "T03"
+      ],
+      "requirements": [
+        "P03",
+        "P17",
+        "AC03"
+      ],
+      "tables": [
+        "public.course",
+        "public.coursechapter",
+        "ea.policy_version",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁course；If-Match课程当前摘要；chapter归属一致；course policy不得放宽global，不改既有binding。",
+      "method": "PATCH",
+      "path": "/api/v1/education/courses/{course_id}",
+      "permission": "course.edit",
+      "request_schema": "CoursePatch",
+      "response_schema": "CourseDetail",
+      "write": true
+    },
+    {
+      "operationId": "createEducationSource",
+      "summary": "导入文本或PDF并创建来源版本",
+      "pages": [
+        "T05"
+      ],
+      "requirements": [
+        "P05",
+        "P07",
+        "AC03",
+        "AC13"
+      ],
+      "tables": [
+        "ea.resource",
+        "ea.resource_version",
+        "ea.task_run",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "JSON文本或multipart PDF；锁course资源集合；source外部资料默认不公开；解析失败/无文本不得标ready。",
+      "method": "POST",
+      "path": "/api/v1/education/courses/{course_id}/resources",
+      "permission": "content.edit",
+      "request_schema": "SourceTextCreate",
+      "response_schema": "ResourceAccepted",
+      "write": true
+    },
+    {
+      "operationId": "getEducationResource",
+      "summary": "查看候选或已发布版本及授权正文",
+      "pages": [
+        "S04",
+        "T05",
+        "T07",
+        "T08"
+      ],
+      "requirements": [
+        "P05",
+        "P07",
+        "P12",
+        "AC02",
+        "AC13"
+      ],
+      "tables": [
+        "ea.resource",
+        "ea.resource_version",
+        "ea.content_check",
+        "ea.publication_event"
+      ],
+      "preconditions": "同course/org；学生只可发布版本且不含restricted_content，教师答案/候选读取需对应动作，不允许管理员元数据权读取。",
+      "method": "GET",
+      "path": "/api/v1/education/resources/{resource_id}",
+      "permission": "content.read/content.edit/content.review in object scope",
+      "request_schema": null,
+      "response_schema": "ResourceView",
+      "write": false
+    },
+    {
+      "operationId": "createEducationResourceVersion",
+      "summary": "追加编辑版本并重新进入校验",
+      "pages": [
+        "T07"
+      ],
+      "requirements": [
+        "P07",
+        "P08",
+        "AC04"
+      ],
+      "tables": [
+        "ea.resource_version",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁resource版本头；expected_version为现有version；不修改已发布/已绑定旧版；forced_review保持或收紧。",
+      "method": "POST",
+      "path": "/api/v1/education/resources/{resource_id}/versions",
+      "permission": "content.edit",
+      "request_schema": "ResourceVersionCreate",
+      "response_schema": "ResourceView",
+      "write": true
+    },
+    {
+      "operationId": "startEducationGeneration",
+      "summary": "发起研究生成或规则模板生成",
+      "pages": [
+        "T06"
+      ],
+      "requirements": [
+        "P07",
+        "P18",
+        "P19",
+        "AC03",
+        "AC05",
+        "AC12"
+      ],
+      "tables": [
+        "ea.task_run",
+        "ea.resource_version",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "来源同course且ready；研究模式要求target_student_id是真实本课程授权学生，知识点非空唯一且映射固定catalog；run_mode默认preview不调用模型。execute须服务端已签发且匹配job/actor/operation/input_hash/max_calls/期限的PaidAuthorization；无授权403，获授权但无凭证503 MODEL_UNCONFIGURED。preview succeeded只表示输入预览完成，没有候选、AI接通或学生可用结论。规则模板不虚构学生。",
+      "method": "POST",
+      "path": "/api/v1/education/courses/{course_id}/generation-runs",
+      "permission": "content.generate",
+      "request_schema": "GenerationRequest",
+      "response_schema": "TaskView",
+      "write": true
+    },
+    {
+      "operationId": "getEducationTask",
+      "summary": "读取任务元数据与产物引用",
+      "pages": [
+        "T01",
+        "T06",
+        "A05"
+      ],
+      "requirements": [
+        "P07",
+        "P19",
+        "AC11"
+      ],
+      "tables": [
+        "ea.task_run"
+      ],
+      "preconditions": "管理员仅元数据，候选正文另走resource鉴权；跨org/course拒绝。",
+      "method": "GET",
+      "path": "/api/v1/education/tasks/{task_id}",
+      "permission": "owner course action or operations.manage",
+      "request_schema": null,
+      "response_schema": "TaskView",
+      "write": false
+    },
+    {
+      "operationId": "commandEducationTask",
+      "summary": "取消或幂等重试任务",
+      "pages": [
+        "T06",
+        "A05"
+      ],
+      "requirements": [
+        "P19",
+        "AC10",
+        "AC11"
+      ],
+      "tables": [
+        "ea.task_run",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁task，当前授权与execution_epoch/ETag一致。cancel仅queued/running，递增epoch并阻止结果应用；研究适配器不保证终止已发模型请求。凡使用integration/research_adapter.py的研究task，retry一律409 RESEARCH_RETRY_UNAVAILABLE，can_retry=false，不通过新job/key绕过旧预算或unknown。仅普通规则/产品任务可在failed、结果已知、预算/次数允许时重试同task，不直接改分。",
+      "method": "POST",
+      "path": "/api/v1/education/tasks/{task_id}/commands",
+      "permission": "owner course action or operations.manage",
+      "request_schema": "TaskCommand",
+      "response_schema": "TaskView",
+      "write": true
+    },
+    {
+      "operationId": "checkEducationResourceVersion",
+      "summary": "执行确定性校验或人工审核",
+      "pages": [
+        "T07"
+      ],
+      "requirements": [
+        "P08",
+        "AC04"
+      ],
+      "tables": [
+        "ea.resource_version",
+        "ea.content_check",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁版本检查头；ready且policy匹配；approve必须已有本版本有效pass；客户端不得伪造确定性verdict，审核不能直接发布。",
+      "method": "POST",
+      "path": "/api/v1/education/resource-versions/{resource_version_id}/checks",
+      "permission": "deterministic:content.edit;human_review:content.review",
+      "request_schema": "CheckRequest",
+      "response_schema": "CheckView",
+      "write": true
+    },
+    {
+      "operationId": "publishEducationResourceVersion",
+      "summary": "追加发布或撤回事件",
+      "pages": [
+        "T08"
+      ],
+      "requirements": [
+        "P09",
+        "AC04",
+        "AC05",
+        "AC10"
+      ],
+      "tables": [
+        "ea.publication_event",
+        "ea.content_check",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁(resource_version,usergroup)事件链；event_no和前驱正确；发布检查确定性pass+必要approve+有效policy；服务自动发布另验服务principal范围。",
+      "method": "POST",
+      "path": "/api/v1/education/resource-versions/{resource_version_id}/publication-events",
+      "permission": "content.publish",
+      "request_schema": "PublicationRequest",
+      "response_schema": "PublicationView",
+      "write": true
+    },
+    {
+      "operationId": "listEducationBindings",
+      "summary": "列出课程作业与测验绑定",
+      "pages": [
+        "S01",
+        "S05",
+        "T01",
+        "T09"
+      ],
+      "requirements": [
+        "P10",
+        "P11",
+        "AC02"
+      ],
+      "tables": [
+        "ea.assignment_binding",
+        "ea.assignment_recipient"
+      ],
+      "preconditions": "学生仅本人recipient，教师仅授权班级，不泄露其他班任务及未开放答案。",
+      "method": "GET",
+      "path": "/api/v1/education/courses/{course_id}/bindings",
+      "permission": "own recipient or task.manage/submission.grade",
+      "request_schema": null,
+      "response_schema": "BindingList",
+      "write": false
+    },
+    {
+      "operationId": "createEducationBinding",
+      "summary": "布置冻结版本到授权班级",
+      "pages": [
+        "T09"
+      ],
+      "requirements": [
+        "P10",
+        "P17",
+        "AC03"
+      ],
+      "tables": [
+        "public.assignment",
+        "ea.rubric_version",
+        "ea.assignment_binding",
+        "ea.assignment_recipient",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁course/发布链/班级；publication最新为publish；各版本同course/org；opens<due；原子写binding与当前班成员recipient快照；不接受跨班student数组。",
+      "method": "POST",
+      "path": "/api/v1/education/courses/{course_id}/bindings",
+      "permission": "task.manage",
+      "request_schema": "BindingCreate",
+      "response_schema": "BindingView",
+      "write": true
+    },
+    {
+      "operationId": "getEducationBinding",
+      "summary": "读取作业规则、本人历史与回执入口",
+      "pages": [
+        "S05",
+        "T09"
+      ],
+      "requirements": [
+        "P10",
+        "P12",
+        "AC06"
+      ],
+      "tables": [
+        "ea.assignment_binding",
+        "ea.assignment_recipient",
+        "ea.submission"
+      ],
+      "preconditions": "学生本人；答案时间/有效成绩门禁独立；撤回后已有正式记录可按保留策略读取但不能新尝试。",
+      "method": "GET",
+      "path": "/api/v1/education/bindings/{binding_id}",
+      "permission": "own recipient or task.manage/submission.grade",
+      "request_schema": null,
+      "response_schema": "BindingView",
+      "write": false
+    },
+    {
+      "operationId": "changeEducationBindingState",
+      "summary": "暂停关闭或归档任务",
+      "pages": [
+        "T09"
+      ],
+      "requirements": [
+        "P10",
+        "P22",
+        "AC10"
+      ],
+      "tables": [
+        "ea.assignment_binding",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁binding/If-Match；只改status+state_reason+state_changed_at，冻结内容/规则不可改；archived不可复活。",
+      "method": "PATCH",
+      "path": "/api/v1/education/bindings/{binding_id}",
+      "permission": "task.manage",
+      "request_schema": "BindingStateRequest",
+      "response_schema": "BindingView",
+      "write": true
+    },
+    {
+      "operationId": "startEducationAttempt",
+      "summary": "本人开始或幂等恢复一次新尝试",
+      "pages": [
+        "S05",
+        "S06",
+        "S07"
+      ],
+      "requirements": [
+        "P11",
+        "AC06"
+      ],
+      "tables": [
+        "ea.assignment_recipient",
+        "ea.attempt",
+        "ea.resubmission_grant",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁recipient及grant；本人当前成员；开放时间/发布/任务状态/次数；截止后需有效个人grant，原子分配grant_slot；start_key取幂等键。",
+      "method": "POST",
+      "path": "/api/v1/education/bindings/{binding_id}/attempts",
+      "permission": "own recipient",
+      "request_schema": "AttemptStart",
+      "response_schema": "AttemptView",
+      "write": true
+    },
+    {
+      "operationId": "getEducationAttempt",
+      "summary": "本人读取草稿与冻结题目",
+      "pages": [
+        "S06"
+      ],
+      "requirements": [
+        "P11",
+        "AC02",
+        "AC06"
+      ],
+      "tables": [
+        "ea.attempt",
+        "ea.resource_version"
+      ],
+      "preconditions": "教师即使有submission.grade也不能读私人draft；跨学生403。",
+      "method": "GET",
+      "path": "/api/v1/education/attempts/{attempt_id}",
+      "permission": "owner only",
+      "request_schema": null,
+      "response_schema": "AttemptView",
+      "write": false
+    },
+    {
+      "operationId": "saveEducationDraft",
+      "summary": "保存本人草稿并递增草稿版本",
+      "pages": [
+        "S06"
+      ],
+      "requirements": [
+        "P11",
+        "AC06"
+      ],
+      "tables": [
+        "ea.attempt",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁attempt；status=draft，draft_revision/If-Match相等；题号属于冻结内容；写失败保留旧草稿，正式记录不可写。",
+      "method": "PUT",
+      "path": "/api/v1/education/attempts/{attempt_id}/draft",
+      "permission": "owner only",
+      "request_schema": "DraftPut",
+      "response_schema": "AttemptView",
+      "write": true
+    },
+    {
+      "operationId": "submitEducationAttempt",
+      "summary": "提交冻结草稿并返回持久回执",
+      "pages": [
+        "S06",
+        "S07"
+      ],
+      "requirements": [
+        "P11",
+        "AC06",
+        "AC07",
+        "AC08"
+      ],
+      "tables": [
+        "ea.attempt",
+        "ea.submission",
+        "ea.task_run",
+        "ea.outbox_event",
+        "ea.audit_event"
+      ],
+      "preconditions": "同事务锁attempt/recipient/grant；重验当前时间/次数/授权/状态；hash与草稿一致；插submission触发attempt=submitted；唯一attempt+key，回执成功后客户端才清草稿。",
+      "method": "POST",
+      "path": "/api/v1/education/attempts/{attempt_id}/submissions",
+      "permission": "owner only",
+      "request_schema": "SubmitRequest",
+      "response_schema": "SubmissionReceipt",
+      "write": true
+    },
+    {
+      "operationId": "listEducationSubmissions",
+      "summary": "列出授权任务正式提交",
+      "pages": [
+        "T01",
+        "T10"
+      ],
+      "requirements": [
+        "P11",
+        "P13",
+        "AC02"
+      ],
+      "tables": [
+        "ea.assignment_binding",
+        "ea.assignment_recipient",
+        "ea.submission",
+        "ea.grade_revision"
+      ],
+      "preconditions": "只正式submission，先按授权班级/学生过滤；不返回未提交draft，也不允许管理员默认读取。",
+      "method": "GET",
+      "path": "/api/v1/education/bindings/{binding_id}/submissions",
+      "permission": "submission.grade",
+      "request_schema": null,
+      "response_schema": "SubmissionList",
+      "write": false
+    },
+    {
+      "operationId": "getEducationSubmission",
+      "summary": "查看正式提交与当前生效结果",
+      "pages": [
+        "S07",
+        "T10"
+      ],
+      "requirements": [
+        "P11",
+        "P13",
+        "P14",
+        "AC08",
+        "AC09"
+      ],
+      "tables": [
+        "ea.submission",
+        "ea.evaluation",
+        "ea.grade_revision",
+        "ea.review_request"
+      ],
+      "preconditions": "学生本人且候选评分字段完全省略；教师需该任务班级学生授权；待批score不当最终成绩。",
+      "method": "GET",
+      "path": "/api/v1/education/submissions/{submission_id}",
+      "permission": "owner or scoped submission.grade/result.review",
+      "request_schema": null,
+      "response_schema": "SubmissionView",
+      "write": false
+    },
+    {
+      "operationId": "evaluateEducationSubmission",
+      "summary": "请求AI建议或保存教师候选评分",
+      "pages": [
+        "T10"
+      ],
+      "requirements": [
+        "P13",
+        "AC08"
+      ],
+      "tables": [
+        "ea.evaluation",
+        "ea.task_run",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁submission评价头，正式已交且范围有效；teacher分值核对冻结rubric；AI分支202 TaskView，缺配置503；均不直接形成有效grade。",
+      "method": "POST",
+      "path": "/api/v1/education/submissions/{submission_id}/evaluations",
+      "permission": "submission.grade",
+      "request_schema": "EvaluationRequest",
+      "response_schema": "EvaluationView",
+      "write": true
+    },
+    {
+      "operationId": "applyEducationGrade",
+      "summary": "教师确认成绩或显式修订生效",
+      "pages": [
+        "T10",
+        "S07"
+      ],
+      "requirements": [
+        "P13",
+        "AC08",
+        "AC09"
+      ],
+      "tables": [
+        "ea.evaluation",
+        "ea.grade_revision",
+        "ea.outbox_event",
+        "ea.audit_event"
+      ],
+      "preconditions": "锁submission成绩链；evaluation必须同提交/学生/版本且teacher+scored；expected_version/前驱一致；追加grade与profile/recommend事件同事务，禁止AI建议直接生效。",
+      "method": "POST",
+      "path": "/api/v1/education/submissions/{submission_id}/grade-revisions",
+      "permission": "submission.grade",
+      "request_schema": "GradeCreate",
+      "response_schema": "GradeView",
+      "write": true
+    },
+    {
+      "operationId": "requestEducationReview",
+      "summary": "学生申请当前成绩复核",
+      "pages": [
+        "S07",
+        "T10"
+      ],
+      "requirements": [
+        "P14",
+        "AC09"
+      ],
+      "tables": [
+        "ea.review_request",
+        "ea.outbox_event",
+        "ea.audit_event"
+      ],
+      "preconditions": "本人有效grade且allow_review；同grade仅一open；不可对他人/旧已被替代结果发有效复核。",
+      "method": "POST",
+      "path": "/api/v1/education/submissions/{submission_id}/reviews",
+      "permission": "owner only",
+      "request_schema": "ReviewCreate",
+      "response_schema": "ReviewView",
+      "write": true
+    },
+    {
+      "operationId": "resolveEducationReview",
+      "summary": "教师保留或修订复核结果",
+      "pages": [
+        "T10",
+        "S07"
+      ],
+      "requirements": [
+        "P14",
+        "P13",
+        "AC09"
+      ],
+      "tables": [
+        "ea.review_request",
+        "ea.grade_revision",
+        "ea.evaluation",
+        "ea.outbox_event",
+        "ea.audit_event"
+      ],
+      "preconditions": "锁review+submission成绩头；open且expected_grade_revision当前；retain不追加grade，revise原子追加teacher grade及更正事件，保存旧结果/原因。",
+      "method": "POST",
+      "path": "/api/v1/education/reviews/{review_request_id}/resolution",
+      "permission": "result.review;revise additionally submission.grade",
+      "request_schema": "ReviewResolution",
+      "response_schema": "ReviewView",
+      "write": true
+    },
+    {
+      "operationId": "grantEducationResubmission",
+      "summary": "授予个人有限补交或订正许可",
+      "pages": [
+        "T10",
+        "S05",
+        "S07"
+      ],
+      "requirements": [
+        "P14",
+        "AC06"
+      ],
+      "tables": [
+        "ea.assignment_recipient",
+        "ea.resubmission_grant",
+        "ea.outbox_event",
+        "ea.audit_event"
+      ],
+      "preconditions": "锁recipient许可集合；同course/class/student；starts<expires且有限次数；不得改原binding截止时间扩张全班。",
+      "method": "POST",
+      "path": "/api/v1/education/recipients/{recipient_id}/resubmission-grants",
+      "permission": "submission.grade or scoped task.manage",
+      "request_schema": "ResubmissionGrantCreate",
+      "response_schema": "ResubmissionGrantView",
+      "write": true
+    },
+    {
+      "operationId": "getEducationLearningState",
+      "summary": "读取课程内画像与证据摘要",
+      "pages": [
+        "S08",
+        "T11"
+      ],
+      "requirements": [
+        "P15",
+        "AC07",
+        "AC09",
+        "AC12"
+      ],
+      "tables": [
+        "ea.profile_version",
+        "ea.evidence_event",
+        "ea.task_run"
+      ],
+      "preconditions": "学生本人或明确教师授权；管理员聚合权不能进个体接口；仅当前course；无证据unknown，无模型不假造研究结果。",
+      "method": "GET",
+      "path": "/api/v1/education/courses/{course_id}/students/{student_id}/learning-state",
+      "permission": "owner or scoped profile.read",
+      "request_schema": null,
+      "response_schema": "LearningStateView",
+      "write": false
+    },
+    {
+      "operationId": "getEducationEvidenceContent",
+      "summary": "二次鉴权读取证据原文",
+      "pages": [
+        "S08",
+        "T11"
+      ],
+      "requirements": [
+        "P06",
+        "P11",
+        "P15",
+        "AC14"
+      ],
+      "tables": [
+        "ea.evidence_event",
+        "ea.submission",
+        "ea.note_permission",
+        "public.learner_note"
+      ],
+      "preconditions": "先验profile范围，再按源正文P06/P11；本人按所有权读取本人笔记；教师必须有有效teacher_read，profile_use不授予教师原文权；教师共享撤销立即拒绝；summary权不推出正文权。",
+      "method": "GET",
+      "path": "/api/v1/education/evidence/{evidence_id}/content",
+      "permission": "source permission plus evidence.read for teacher",
+      "request_schema": null,
+      "response_schema": "EvidenceContent",
+      "write": false
+    },
+    {
+      "operationId": "getEducationRecommendations",
+      "summary": "读取当前可访问的学习建议",
+      "pages": [
+        "S01",
+        "S08",
+        "T11"
+      ],
+      "requirements": [
+        "P16",
+        "AC07",
+        "AC10",
+        "AC12"
+      ],
+      "tables": [
+        "ea.recommendation_version",
+        "ea.recommendation_item",
+        "ea.publication_event",
+        "ea.assignment_recipient"
+      ],
+      "preconditions": "按当前授权/发布/任务有效状态重过滤；strategy可为course_rule但不得冒充research_B；无可用内容no_content。",
+      "method": "GET",
+      "path": "/api/v1/education/courses/{course_id}/students/{student_id}/recommendations",
+      "permission": "owner or scoped profile.read",
+      "request_schema": null,
+      "response_schema": "RecommendationView",
+      "write": false
+    },
+    {
+      "operationId": "createEducationIntervention",
+      "summary": "记录教师干预并影响后续任务",
+      "pages": [
+        "T11",
+        "T09"
+      ],
+      "requirements": [
+        "P16",
+        "AC09"
+      ],
+      "tables": [
+        "ea.intervention_event",
+        "ea.outbox_event",
+        "ea.audit_event"
+      ],
+      "preconditions": "锁学生当前profile/recommend头；目标binding属于该课程和授权班级；只影响未开始后续任务，不替换现有attempt。",
+      "method": "POST",
+      "path": "/api/v1/education/courses/{course_id}/students/{student_id}/interventions",
+      "permission": "intervention.write",
+      "request_schema": "InterventionCreate",
+      "response_schema": "InterventionView",
+      "write": true
+    },
+    {
+      "operationId": "listEducationScopes",
+      "summary": "查询账号班级与动作范围元数据",
+      "pages": [
+        "A02",
+        "A03"
+      ],
+      "requirements": [
+        "P02",
+        "P04",
+        "AC02"
+      ],
+      "tables": [
+        "ea.principal",
+        "ea.action_grant",
+        "public.usergroupuser"
+      ],
+      "preconditions": "仅本org授权元数据和必要基础资料，不含提交/笔记/课程正文。",
+      "method": "GET",
+      "path": "/api/v1/education/admin/scopes",
+      "permission": "access.manage",
+      "request_schema": null,
+      "response_schema": "ScopeList",
+      "write": false
+    },
+    {
+      "operationId": "changeEducationScope",
+      "summary": "独立主体授予撤销范围或管理成员",
+      "pages": [
+        "A03"
+      ],
+      "requirements": [
+        "P02",
+        "P04",
+        "P22",
+        "AC02",
+        "AC10"
+      ],
+      "tables": [
+        "ea.action_grant",
+        "public.usergroupuser",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁scope集合及目标；服务端派生approved_by/granted_by；任何给自己的教学提权403；独立获授权主体批准后才能写；不能授权自己不具备/不可委派范围。",
+      "method": "POST",
+      "path": "/api/v1/education/admin/scopes",
+      "permission": "access.manage within delegable scope",
+      "request_schema": "ScopeCommand",
+      "response_schema": "CommandResult",
+      "write": true
+    },
+    {
+      "operationId": "listEducationPolicies",
+      "summary": "读取允许策略和历史版本",
+      "pages": [
+        "A04",
+        "T03"
+      ],
+      "requirements": [
+        "P17",
+        "AC04"
+      ],
+      "tables": [
+        "ea.policy_version"
+      ],
+      "preconditions": "教师只能查看课程可选策略，不获得全局配置权；禁止返回密钥。",
+      "method": "GET",
+      "path": "/api/v1/education/admin/policies",
+      "permission": "policy.manage or scoped course.edit",
+      "request_schema": null,
+      "response_schema": "PolicyList",
+      "write": false
+    },
+    {
+      "operationId": "createEducationPolicy",
+      "summary": "追加全局或课程策略版本",
+      "pages": [
+        "A04",
+        "T03"
+      ],
+      "requirements": [
+        "P17",
+        "AC04"
+      ],
+      "tables": [
+        "ea.policy_version",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁family头；expected_version当前/新family为0；course必须引用global且只收窄；禁止追溯覆盖已绑定任务或清除forced_review。",
+      "method": "POST",
+      "path": "/api/v1/education/admin/policies",
+      "permission": "global:policy.manage;course:course.edit",
+      "request_schema": "PolicyCreate",
+      "response_schema": "PolicyView",
+      "write": true
+    },
+    {
+      "operationId": "getEducationOperations",
+      "summary": "读取能力预算队列与错误元数据",
+      "pages": [
+        "A01",
+        "A05"
+      ],
+      "requirements": [
+        "P18",
+        "P19",
+        "AC11",
+        "AC12"
+      ],
+      "tables": [
+        "ea.task_run",
+        "ea.principal",
+        "public.course",
+        "public.ai_usage_event"
+      ],
+      "preconditions": "白名单字段，无模型/学生正文、配置值或密钥；配置状态与真实受控调用验证分开。",
+      "method": "GET",
+      "path": "/api/v1/education/admin/operations",
+      "permission": "operations.manage",
+      "request_schema": null,
+      "response_schema": "OperationsView",
+      "write": false
+    },
+    {
+      "operationId": "listEducationAudit",
+      "summary": "查询只追加业务审计元数据",
+      "pages": [
+        "A06"
+      ],
+      "requirements": [
+        "P20",
+        "AC09",
+        "AC11"
+      ],
+      "tables": [
+        "ea.audit_event"
+      ],
+      "preconditions": "按org/course/actor/target/time过滤，详情仍只有元数据；引用到正文需另走对应鉴权接口，不提供删除/编辑。",
+      "method": "GET",
+      "path": "/api/v1/education/admin/audit",
+      "permission": "audit.metadata",
+      "request_schema": null,
+      "response_schema": "AuditList",
+      "write": false
+    },
+    {
+      "operationId": "changeEducationNotePermission",
+      "summary": "本人授权或撤销笔记共享与画像用途",
+      "pages": [
+        "S04",
+        "C02",
+        "T11"
+      ],
+      "requirements": [
+        "P06",
+        "AC14"
+      ],
+      "tables": [
+        "public.learner_note",
+        "ea.note_permission",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁note许可头；note确属本人/当前course/org；teacher_read接收者需授权教师，profile_use与共享分离；撤回停止后续原文访问。",
+      "method": "POST",
+      "path": "/api/v1/education/notes/{note_id}/permissions",
+      "permission": "note owner only",
+      "request_schema": "NotePermissionCommand",
+      "response_schema": "NotePermissionView",
+      "write": true
+    },
+    {
+      "operationId": "commandEducationPrincipal",
+      "summary": "停用V2身份或撤销本人组织账号会话",
+      "pages": [
+        "A02"
+      ],
+      "requirements": [
+        "P01",
+        "P22",
+        "AC01",
+        "AC10"
+      ],
+      "tables": [
+        "ea.principal",
+        "ea.audit_event",
+        "ea.outbox_event"
+      ],
+      "preconditions": "锁principal；target本org；不删除user/正式证据；会话撤销使用上游机制且不可吞失败；disable阻断所有通往V2对象的旧入口；不意味着其他组织账号全局停用。",
+      "method": "POST",
+      "path": "/api/v1/education/admin/principals/commands",
+      "permission": "access.manage",
+      "request_schema": "PrincipalCommand",
+      "response_schema": "CommandResult",
+      "write": true
+    },
+    {
+      "operationId": "getEducationSharedNote",
+      "summary": "读取学生明确共享的笔记原文",
+      "pages": [
+        "S04",
+        "C02",
+        "T11"
+      ],
+      "requirements": [
+        "P06",
+        "AC14"
+      ],
+      "tables": [
+        "public.learner_note",
+        "ea.note_permission",
+        "ea.principal",
+        "ea.action_grant"
+      ],
+      "preconditions": "直接按note_id+org/course/student+grantee验证有效teacher_read，不以profile_use或是否有画像证据替代共享权限。",
+      "method": "GET",
+      "path": "/api/v1/education/notes/{note_id}/shared-content",
+      "permission": "valid teacher_read consent plus current course teacher scope",
+      "request_schema": null,
+      "response_schema": "SharedNoteView",
+      "write": false
+    }
+  ],
+  "pages": [
+    {
+      "page_id": "C01",
+      "name": "登录",
+      "ui_path": "/login",
+      "scope": "D",
+      "operation_ids": [
+        "educationSession"
+      ],
+      "reused_upstream_operations": [
+        "POST /api/v1/auth/login",
+        "GET /api/v1/auth/refresh",
+        "DELETE /api/v1/auth/logout"
+      ],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "C02",
+      "name": "我的账号",
+      "ui_path": "/account",
+      "scope": "D",
+      "operation_ids": [
+        "educationSession",
+        "changeEducationNotePermission",
+        "getEducationSharedNote"
+      ],
+      "reused_upstream_operations": [
+        "POST /api/v1/auth/login",
+        "GET /api/v1/auth/refresh",
+        "DELETE /api/v1/auth/logout"
+      ],
+      "status": "partial_contract_with_explicit_boundary",
+      "explicit_boundaries": [
+        "本人资料编辑复用LearnHouse账号页服务；其请求协议不在本扩展41项操作内，角色切换仅切UI视图。"
+      ]
+    },
+    {
+      "page_id": "S01",
+      "name": "学习首页",
+      "ui_path": "/student",
+      "scope": "D",
+      "operation_ids": [
+        "educationSession",
+        "listEducationCourses",
+        "listEducationBindings",
+        "getEducationRecommendations"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "S02",
+      "name": "我的课程",
+      "ui_path": "/student/courses",
+      "scope": "D",
+      "operation_ids": [
+        "listEducationCourses"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "S03",
+      "name": "课程详情",
+      "ui_path": "/student/courses/:courseId",
+      "scope": "D",
+      "operation_ids": [
+        "getEducationCourse"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "S04",
+      "name": "学习工作区",
+      "ui_path": "/student/courses/:courseId/learn/:activityId",
+      "scope": "D*",
+      "operation_ids": [
+        "getEducationResource",
+        "changeEducationNotePermission",
+        "getEducationSharedNote"
+      ],
+      "reused_upstream_operations": [
+        "GET /api/v1/notes/activity/{activity_uuid}",
+        "POST /api/v1/notes/activity/{activity_uuid}",
+        "PATCH /api/v1/notes/{note_uuid}",
+        "DELETE /api/v1/notes/{note_uuid}"
+      ],
+      "status": "partial_contract_with_explicit_boundary",
+      "explicit_boundaries": [
+        "课程问答未列入41项核心操作：capabilities.course_qa=unconfigured时禁用提交并标未接通；后续真实RAG需独立契约与验收，不把研究生成当问答。"
+      ]
+    },
+    {
+      "page_id": "S05",
+      "name": "作业详情",
+      "ui_path": "/student/assignments/:assignmentId",
+      "scope": "D",
+      "operation_ids": [
+        "listEducationBindings",
+        "getEducationBinding",
+        "startEducationAttempt",
+        "grantEducationResubmission"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "S06",
+      "name": "作答工作区",
+      "ui_path": "/student/assignments/:assignmentId/attempts/:attemptId",
+      "scope": "D",
+      "operation_ids": [
+        "startEducationAttempt",
+        "getEducationAttempt",
+        "saveEducationDraft",
+        "submitEducationAttempt"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "S07",
+      "name": "结果与订正",
+      "ui_path": "/student/submissions/:submissionId",
+      "scope": "D",
+      "operation_ids": [
+        "startEducationAttempt",
+        "submitEducationAttempt",
+        "getEducationSubmission",
+        "applyEducationGrade",
+        "requestEducationReview",
+        "resolveEducationReview",
+        "grantEducationResubmission"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "S08",
+      "name": "我的学习状态",
+      "ui_path": "/student/courses/:courseId/learning-state",
+      "scope": "D*",
+      "operation_ids": [
+        "getEducationLearningState",
+        "getEducationEvidenceContent",
+        "getEducationRecommendations"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T01",
+      "name": "教学工作台",
+      "ui_path": "/teacher",
+      "scope": "D",
+      "operation_ids": [
+        "educationSession",
+        "listEducationCourses",
+        "getEducationTask",
+        "listEducationBindings",
+        "listEducationSubmissions"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T02",
+      "name": "我的课程",
+      "ui_path": "/teacher/courses",
+      "scope": "D",
+      "operation_ids": [
+        "listEducationCourses",
+        "createEducationCourse"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T03",
+      "name": "课程设计",
+      "ui_path": "/teacher/courses/:courseId",
+      "scope": "D",
+      "operation_ids": [
+        "getEducationCourse",
+        "updateEducationCourse",
+        "listEducationPolicies",
+        "createEducationPolicy"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T04",
+      "name": "班级与成员",
+      "ui_path": "/teacher/courses/:courseId/classes",
+      "scope": "D",
+      "operation_ids": [
+        "getEducationCourse"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T05",
+      "name": "教学目标与资料",
+      "ui_path": "/teacher/courses/:courseId/materials",
+      "scope": "D",
+      "operation_ids": [
+        "getEducationCourse",
+        "createEducationSource",
+        "getEducationResource"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T06",
+      "name": "生成任务",
+      "ui_path": "/teacher/courses/:courseId/generation/:generationId",
+      "scope": "D*",
+      "operation_ids": [
+        "startEducationGeneration",
+        "getEducationTask",
+        "commandEducationTask"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T07",
+      "name": "内容编辑与审核",
+      "ui_path": "/teacher/resources/:resourceId/review",
+      "scope": "D",
+      "operation_ids": [
+        "getEducationResource",
+        "createEducationResourceVersion",
+        "checkEducationResourceVersion"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T08",
+      "name": "课程资源与发布",
+      "ui_path": "/teacher/courses/:courseId/resources",
+      "scope": "D",
+      "operation_ids": [
+        "getEducationCourse",
+        "getEducationResource",
+        "publishEducationResourceVersion"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T09",
+      "name": "作业与测验",
+      "ui_path": "/teacher/courses/:courseId/assignments",
+      "scope": "D",
+      "operation_ids": [
+        "getEducationCourse",
+        "listEducationBindings",
+        "createEducationBinding",
+        "getEducationBinding",
+        "changeEducationBindingState",
+        "createEducationIntervention"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T10",
+      "name": "提交与批阅",
+      "ui_path": "/teacher/assignments/:assignmentId/submissions/:submissionId",
+      "scope": "D",
+      "operation_ids": [
+        "listEducationSubmissions",
+        "getEducationSubmission",
+        "evaluateEducationSubmission",
+        "applyEducationGrade",
+        "requestEducationReview",
+        "resolveEducationReview",
+        "grantEducationResubmission"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T11",
+      "name": "班级学情与学生详情",
+      "ui_path": "/teacher/classes/:classId/learning",
+      "scope": "D*",
+      "operation_ids": [
+        "getEducationCourse",
+        "getEducationLearningState",
+        "getEducationEvidenceContent",
+        "getEducationRecommendations",
+        "createEducationIntervention",
+        "changeEducationNotePermission",
+        "getEducationSharedNote"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "T12",
+      "name": "教学质量评估",
+      "ui_path": "/teacher/courses/:courseId/evaluation",
+      "scope": "F",
+      "operation_ids": [],
+      "reused_upstream_operations": [],
+      "status": "planned",
+      "explicit_boundaries": [
+        "规划页面，无Demo业务API，不输出虚构质量分数/趋势。"
+      ]
+    },
+    {
+      "page_id": "A01",
+      "name": "管理概览",
+      "ui_path": "/admin",
+      "scope": "D",
+      "operation_ids": [
+        "educationSession",
+        "listEducationCourses",
+        "getEducationOperations"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "A02",
+      "name": "账号与角色",
+      "ui_path": "/admin/accounts",
+      "scope": "D",
+      "operation_ids": [
+        "listEducationScopes",
+        "commandEducationPrincipal"
+      ],
+      "reused_upstream_operations": [],
+      "status": "partial_contract_with_explicit_boundary",
+      "explicit_boundaries": [
+        "本契约包含V2身份停用/启用与上游会话撤销，不定义新登录/密码协议；新账号创建和密码首次设置需沿用经权限收窄的LearnHouse现有流程，Demo账号由安全初始化建立。"
+      ]
+    },
+    {
+      "page_id": "A03",
+      "name": "课程与授权范围",
+      "ui_path": "/admin/course-access",
+      "scope": "D",
+      "operation_ids": [
+        "listEducationScopes",
+        "changeEducationScope"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "A04",
+      "name": "校验与发布策略",
+      "ui_path": "/admin/policies",
+      "scope": "D",
+      "operation_ids": [
+        "listEducationPolicies",
+        "createEducationPolicy"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    },
+    {
+      "page_id": "A05",
+      "name": "模型与任务运行",
+      "ui_path": "/admin/operations",
+      "scope": "D",
+      "operation_ids": [
+        "getEducationTask",
+        "commandEducationTask",
+        "getEducationOperations"
+      ],
+      "reused_upstream_operations": [],
+      "status": "partial_contract_with_explicit_boundary",
+      "explicit_boundaries": [
+        "本契约仅读能力状态/预算元数据与任务取消重试；密钥写入走部署安全配置，不通过该浏览器API回显或传递。"
+      ]
+    },
+    {
+      "page_id": "A06",
+      "name": "操作记录与证据追踪",
+      "ui_path": "/admin/trace",
+      "scope": "D",
+      "operation_ids": [
+        "listEducationAudit"
+      ],
+      "reused_upstream_operations": [],
+      "status": "core_contract_defined",
+      "explicit_boundaries": []
+    }
+  ],
+  "not_implemented_notice": "所有扩展操作均为设计，不表示app已有路由。上游复用接口仍需全链路V2权限门禁/幂等适配后验收。"
+}

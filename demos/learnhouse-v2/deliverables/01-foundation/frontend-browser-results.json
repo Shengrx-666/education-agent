@@ -1,0 +1,9 @@
+{
+  "scope": "Unmodified upstream login only; not the education V2 Demo",
+  "http_status": 200,
+  "title": "Login | Education Foundation Probe",
+  "password_inputs": 1,
+  "email_inputs": 1,
+  "page_errors": [],
+  "passed": true
+}

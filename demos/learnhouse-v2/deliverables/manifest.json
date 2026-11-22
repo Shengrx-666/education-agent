@@ -1,0 +1,387 @@
+{
+  "scope": "Engineering design and preparation package; not a complete V2 Demo",
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 59,
+      "sha256": "2c3aed3646f9415d3e5c95308c80f71d90dcf082d6bbed402e4b2fa2dedeab81"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5584,
+      "sha256": "584e3061b1ec9e02af08502844a93e53bf3755fd968ef04482b9f20c57a578f0"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "bytes": 735,
+      "sha256": "23ae38aae29dab84d4682811555a56b4f0eb4aef27eb6a481f6bd30ebfbaa8e0"
+    },
+    {
+      "path": "deliverables/01-foundation/api-smoke-results.json",
+      "bytes": 1069,
+      "sha256": "104d7bcffe74f5282b57b8d69725113becaec2c47fb84ed6dafb946c3f863386"
+    },
+    {
+      "path": "deliverables/01-foundation/backend-install.log",
+      "bytes": 3702,
+      "sha256": "a0b72d1ccae410bc0bb9d1b7fb7ceb56c1bc479cfc32d41806b68933b2b43be7"
+    },
+    {
+      "path": "deliverables/01-foundation/backend-startup-without-pgvector.log",
+      "bytes": 11972,
+      "sha256": "a57878650e456ca855b9fdabe2c0542991d2430bdc6faf5e3e9c9c691ef6b946"
+    },
+    {
+      "path": "deliverables/01-foundation/backend-startup.log",
+      "bytes": 24727,
+      "sha256": "da828e68ad652d8ea9526620a930a76486a37a1df71934b7140a2c997a954328"
+    },
+    {
+      "path": "deliverables/01-foundation/database-bootstrap-evidence.json",
+      "bytes": 165,
+      "sha256": "19277a0c24c5a076960a75c2bee7119af97c743ce038e6459333ab9e6dca458b"
+    },
+    {
+      "path": "deliverables/01-foundation/database-bootstrap-evidence.txt",
+      "bytes": 13,
+      "sha256": "dfd8734af286b3a3ae2fe4c47af1f4c5b42d7322a04ad91d5b82a802c939bce1"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-browser-results.json",
+      "bytes": 229,
+      "sha256": "e8d77c70431792d5e323f6d08957d718d5db277fc36094ad912ab46b173b92d6"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-canonical-status.txt",
+      "bytes": 4,
+      "sha256": "c11e3f4837efde2441e23a7b9da02131f53bf59fddeb7147c4ab81afe400460f"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-http-status.txt",
+      "bytes": 4,
+      "sha256": "792376c209f338959be4cf00c54dbf82662b90516082e23106faec4c43c69e49"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-install.log",
+      "bytes": 4143,
+      "sha256": "98731a9d3d7cb89dd9e3efd4aa5a046c57dc00f36d64e7227e316a22dd85164f"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-login-localhost-status.txt",
+      "bytes": 4,
+      "sha256": "945e4893567554e68f6f28d5652917269341a5f3d295a16b7c708c9bfd95dc5d"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-login-status.txt",
+      "bytes": 4,
+      "sha256": "792376c209f338959be4cf00c54dbf82662b90516082e23106faec4c43c69e49"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-request-diagnostic.log",
+      "bytes": 980,
+      "sha256": "254d2fedfe51162525ee9735cd6d2b59878693b1ed60bf99fb3c9c2ed8e3b401"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-startup-bun.log",
+      "bytes": 497046,
+      "sha256": "ce7bbacc5b6261a055465e41ffb94751d3e2be9d18fd13c5496262965ea6e702"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-startup-localhost.log",
+      "bytes": 612,
+      "sha256": "622987299918b49dfeda4c484d1d0c8007b7107e73df9307dac464df3d6e340c"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-startup-webpack.log",
+      "bytes": 519,
+      "sha256": "f9d188e121a4ce2867b28044c5e7d0233b6792c94e6f6867c4a6d5aa2f00f066"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-startup.log",
+      "bytes": 1077,
+      "sha256": "923289935c767d5d5c99f9626a536555eab849a49aadda940e63b5f7bfc4e119"
+    },
+    {
+      "path": "deliverables/01-foundation/frontend-webpack-status.txt",
+      "bytes": 4,
+      "sha256": "792376c209f338959be4cf00c54dbf82662b90516082e23106faec4c43c69e49"
+    },
+    {
+      "path": "deliverables/01-foundation/learnhouse-login.png",
+      "bytes": 82596,
+      "sha256": "320fee3fd7165bb1142b10febd1819961312d445d8c6b2da581371688461b6ff"
+    },
+    {
+      "path": "deliverables/01-foundation/pgvector-build.log",
+      "bytes": 18074,
+      "sha256": "ea21a7a50ae4cabd05f9e1685d72252abe828ffc4d07a8b05c85651f9762ba08"
+    },
+    {
+      "path": "deliverables/01-foundation/pgvector-install.log",
+      "bytes": 2592,
+      "sha256": "bfdcaf64535eef50f9a4b1fa4f97ecc5b63b5cac96fb369dd3f7d78e0dd097b3"
+    },
+    {
+      "path": "deliverables/01-foundation/python-install-current.log",
+      "bytes": 189,
+      "sha256": "2001dae9b5668eef64d1345a0b42a07538076f44e2400f00ef09a2237dc7a059"
+    },
+    {
+      "path": "deliverables/01-foundation/python-install.log",
+      "bytes": 436,
+      "sha256": "3d1fe8f50f1d64d32eea33d15edc15dd7dc118d19df9fb674fd9e1ca127ff4b4"
+    },
+    {
+      "path": "deliverables/01-foundation/uv-upgrade.log",
+      "bytes": 561,
+      "sha256": "6ae87652a928a0bb4e2690b2f2499d6745bffd08a4aed6e6bb35a221121e84b8"
+    },
+    {
+      "path": "deliverables/01-foundation/底座源码与许可范围核查.md",
+      "bytes": 19534,
+      "sha256": "7fdfe56beb074d9fcafc64f0a3426a863090c69877e170313a0c939b2429a30d"
+    },
+    {
+      "path": "deliverables/01-foundation/阶段一_底座验证报告.docx",
+      "bytes": 14729,
+      "sha256": "265dc35bb2a0821ce60f22b242c138b5b19485bd5cbd222b448323a162df576d"
+    },
+    {
+      "path": "deliverables/01-foundation/阶段一_底座验证报告.md",
+      "bytes": 4904,
+      "sha256": "231c30d431e0661736ce7ca059d2ee1a29e804214d50163cb527d9c4cc08d65b"
+    },
+    {
+      "path": "deliverables/01-foundation/阶段一_底座验证报告.pdf",
+      "bytes": 167604,
+      "sha256": "f10206d390b89eecebe9771e0f69ae5fe06301a2f77508941bcd68ab8886de71"
+    },
+    {
+      "path": "deliverables/02-design/api-contract.md",
+      "bytes": 29808,
+      "sha256": "8b92e263c0f9543243639e3db8171b81388e81d5dd4d8c732323940bb102064a"
+    },
+    {
+      "path": "deliverables/02-design/api-page-mapping.json",
+      "bytes": 46230,
+      "sha256": "07fabfa0278b4915ceb1bb6805f53e1c2df2f3c27b898e16c44baad9d3a4aefd"
+    },
+    {
+      "path": "deliverables/02-design/data-dictionary.json",
+      "bytes": 150307,
+      "sha256": "9d0e87e980e5e310c131f5e0bfb1094b4ede44b28a170345e0c551b175b964b3"
+    },
+    {
+      "path": "deliverables/02-design/database-design.md",
+      "bytes": 29844,
+      "sha256": "9443f04e373fd2990bc29136d65a964c03fa37d39f74832a8fb3bbc4c1594bec"
+    },
+    {
+      "path": "deliverables/02-design/er.mmd",
+      "bytes": 6750,
+      "sha256": "62f36708e58e44b460e1c13a778d398521f69b988c25b1e925cf242c448cee43"
+    },
+    {
+      "path": "deliverables/02-design/openapi.json",
+      "bytes": 379043,
+      "sha256": "ff34d5cb7b36e7e7d9be2e56dd9c686d1a26775ae6f148c7bf5ee03a2d6a6009"
+    },
+    {
+      "path": "deliverables/02-design/research-integration-contract.examples.json",
+      "bytes": 3279,
+      "sha256": "1701cc8699726f2fc1913c1c1e47743af1cd5e13a318029d57b9b0f972ad3f02"
+    },
+    {
+      "path": "deliverables/02-design/research-integration-contract.md",
+      "bytes": 17367,
+      "sha256": "d2b90ef20719c18c9da8771a2bf22f380074a56d1a2dd4215c3677bfd34e5ccb"
+    },
+    {
+      "path": "deliverables/02-design/schema.sql",
+      "bytes": 55392,
+      "sha256": "fad3fba28d7f7933fc05b87b57cb5a4f9f0dba4bf37f530bbc600531ce3b4616"
+    },
+    {
+      "path": "deliverables/02-design/validation-constraints.log",
+      "bytes": 6523,
+      "sha256": "64581971ee8b4ece030e6efb5826cce2be2f3a0c3a61fa813029de4c662c5c91"
+    },
+    {
+      "path": "deliverables/02-design/validation-constraints.sql",
+      "bytes": 22638,
+      "sha256": "411c0e4f8fada119e597fa8ee8e7a570ee7871c5607486a9c77318e66939e432"
+    },
+    {
+      "path": "deliverables/02-design/validation-ddl.log",
+      "bytes": 1391,
+      "sha256": "55feea7c128c7350b958b24d8c9220676a5c896f55fdd484274d9078295079b7"
+    },
+    {
+      "path": "deliverables/02-design/validation-real-upstream-ddl.log",
+      "bytes": 1391,
+      "sha256": "55feea7c128c7350b958b24d8c9220676a5c896f55fdd484274d9078295079b7"
+    },
+    {
+      "path": "deliverables/02-design/validation-real-upstream-restore.log",
+      "bytes": 13316,
+      "sha256": "79187568fff41735afae986af4c9b93ba8eb4fe8073196dafc0d04924a9b3b2a"
+    },
+    {
+      "path": "deliverables/02-design/validation-real-upstream-source.json",
+      "bytes": 129,
+      "sha256": "a1e1e17c6a4fa2dec951ecab349fb990f5640d75105a20e55d4a2cf49267670a"
+    },
+    {
+      "path": "deliverables/02-design/validation-real-upstream-target.json",
+      "bytes": 222,
+      "sha256": "ccfaf501c4909bdc562707eb2d7de1b8ce6ed15efdace6fd05f5c3e86b86d0c5"
+    },
+    {
+      "path": "deliverables/02-design/validation-reset.log",
+      "bytes": 2085,
+      "sha256": "c7d52a342f56b1d1420f8a3be2c6ed6757f3010a607da142e377407b4609ef19"
+    },
+    {
+      "path": "deliverables/02-design/validation-summary.json",
+      "bytes": 2276,
+      "sha256": "1408999415d209dff21f74790d559464825c73daa58078c78e0e457191d7e6a1"
+    },
+    {
+      "path": "deliverables/02-design/validation-upstream-real.sql",
+      "bytes": 246891,
+      "sha256": "39b85458047411a824a7d4215c22c675f835d328a7f555e9f098e2ef2f014b36"
+    },
+    {
+      "path": "deliverables/02-design/validation-upstream-stub.sql",
+      "bytes": 1851,
+      "sha256": "1b5c854a3856e5774a5e4f660c778f292ab8ac0f5ca841eca01f87ef2b585783"
+    },
+    {
+      "path": "deliverables/02-design/上游表与扩展对象映射.json",
+      "bytes": 69574,
+      "sha256": "11512b520b8928bbfdf2171dcde1cf51d02d5b2334016ecc2fd82a7f11642d6f"
+    },
+    {
+      "path": "deliverables/02-design/数据库与接口交付清单.xlsx",
+      "bytes": 57550,
+      "sha256": "20c874cfd3d83832b94ca668f948a82fc448148a55e7997ae0480adaafbf8a26"
+    },
+    {
+      "path": "deliverables/02-design/阶段二_数据库与接口设计说明书.docx",
+      "bytes": 339114,
+      "sha256": "a83a9bb66ff13653c815027749414b7d6816663ae1949755fbda2bfd582e0d84"
+    },
+    {
+      "path": "deliverables/02-design/阶段二_数据库与接口设计说明书.md",
+      "bytes": 13740,
+      "sha256": "60c21a1f40b7e48ade6d269cbe17cee4b13379e4aad78c99198dea3fde3a0fa9"
+    },
+    {
+      "path": "deliverables/02-design/阶段二_数据库与接口设计说明书.pdf",
+      "bytes": 555213,
+      "sha256": "4f71d2508dc81b7624d822a06378db965ad91dc75e00dd5949d0862631cf1e23"
+    },
+    {
+      "path": "deliverables/03-demo/research-adapter-status.md",
+      "bytes": 7936,
+      "sha256": "ceb5e38b0bad8588f49121fe0758e73a1404cae5ff9edcafa1d755ad2f9bb08f"
+    },
+    {
+      "path": "deliverables/03-demo/下一阶段Demo实施清单.md",
+      "bytes": 2123,
+      "sha256": "879818db5771da0fd32d9f41970c1f6041d41c3c5949299e0be282c9001565ca"
+    },
+    {
+      "path": "deliverables/04-validation/contract-cross-review.md",
+      "bytes": 12261,
+      "sha256": "71285f4eff38c021418495419f60cef695be067e6333cdb4eb8ef35ad2392d3e"
+    },
+    {
+      "path": "deliverables/04-validation/research-adapter-tests.log",
+      "bytes": 3263,
+      "sha256": "6635125df4170e43d5b1e8f88a6ffe00cee6c8f2589e8707608f039e1ff8e15c"
+    },
+    {
+      "path": "deliverables/04-validation/集成验收计划.md",
+      "bytes": 3185,
+      "sha256": "bd4df0801ef277ccfd05a0ae6b6982ad7f57f1911c145a40e5a8b661a0fd9d52"
+    },
+    {
+      "path": "deliverables/assets/data-flow.png",
+      "bytes": 332473,
+      "sha256": "8516204de19ae0c253fd7e4a295e172a85bffa3cd609f2c0c8a6874681df017f"
+    },
+    {
+      "path": "deliverables/assets/data-flow.svg",
+      "bytes": 5608,
+      "sha256": "4a3b3d50043f7e9c0f4ef9e272e488a4ea9823d7b1c6bd259182415118467c87"
+    },
+    {
+      "path": "deliverables/assets/design-pdf-text.txt",
+      "bytes": 15830,
+      "sha256": "be60d8c3e33f3bb84dd472edc0e4161b3ebb8de269cdbe64858b06c9292c1acf"
+    },
+    {
+      "path": "deliverables/assets/foundation-pdf-text.txt",
+      "bytes": 7004,
+      "sha256": "181ddebae770f7b1f4e1146abf9457bbf551d015139107faca44069b137ffe5f"
+    },
+    {
+      "path": "deliverables/assets/reference.docx",
+      "bytes": 10305,
+      "sha256": "be470d291c87ada65baf4c9f5ce2fac6ccc08dcf842da82c8d204082b82997b5"
+    },
+    {
+      "path": "deliverables/stage-status.json",
+      "bytes": 994,
+      "sha256": "de2221ee92bee3335d8199f343ade278b1872db1af686040b2fd771d72a5c691"
+    },
+    {
+      "path": "integration/research_adapter.py",
+      "bytes": 22636,
+      "sha256": "a3b4b3d713624ab3f73189971f0481f382c1f764bdfa7baf99467d94332dcd69"
+    },
+    {
+      "path": "integration/tests/test_research_adapter.py",
+      "bytes": 18157,
+      "sha256": "11da80e281059a27c520a999e9c8a810e06926dbd5ec16260fbe12b4779fbb4e"
+    },
+    {
+      "path": "scripts/build_phase_deliverables.py",
+      "bytes": 26832,
+      "sha256": "21efb8a777f6c3312bb27d413cc3c79fe1695f9d4d908935e9f749f5ee6f9435"
+    },
+    {
+      "path": "scripts/foundation_api.py",
+      "bytes": 2396,
+      "sha256": "19fe1f9aaf7db7f7240cdcc34bfb961bef2c4ba41a33d482887fe0738a437c28"
+    },
+    {
+      "path": "scripts/foundation_web.py",
+      "bytes": 986,
+      "sha256": "2cad260dd7a33915e23f04498b8546c766fbb36b801a8353a0e97d5c81e3c829"
+    },
+    {
+      "path": "scripts/pg_config_local.py",
+      "bytes": 638,
+      "sha256": "4cf30da4ef60f1e0b5154977d73ab8a2930c97788b7366506645dff603d4c126"
+    },
+    {
+      "path": "scripts/verify_foundation_api.py",
+      "bytes": 2674,
+      "sha256": "deab1d1322c540454b2426910756d6237248508b732ae1076a54c4e66f7b141d"
+    },
+    {
+      "path": "scripts/verify_foundation_web.cjs",
+      "bytes": 1632,
+      "sha256": "e5f387fea780186ebd3ad52039bd07d772af3e9e0729511a4736fc10ebe0b21c"
+    },
+    {
+      "path": "third_party/LearnHouse-LICENSE",
+      "bytes": 34523,
+      "sha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef"
+    }
+  ],
+  "generated_private_values_scan": "passed",
+  "local_preview_services": "stopped after verification"
+}

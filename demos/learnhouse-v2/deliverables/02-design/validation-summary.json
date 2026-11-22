@@ -1,0 +1,60 @@
+{
+  "database": "ea_design_validation",
+  "postgresql_version": "PostgreSQL 14.24 (Ubuntu 14.24-0ubuntu0.22.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0, 64-bit",
+  "ea_tables": 26,
+  "ea_columns": 350,
+  "remaining_submission_fixtures": 0,
+  "remaining_profile_fixtures": 0,
+  "remaining_upstream_fixtures": 0,
+  "foreign_keys": 94,
+  "check_constraints": 128,
+  "date": "2026-11-20",
+  "passed_assertions": 37,
+  "fixture_transaction": "ROLLBACK",
+  "ddl_result": "COMMIT",
+  "scope": "PostgreSQL 14.24: 37 rollback-only assertions on minimal upstream stubs, plus successful final DDL against a schema-only copy of the real bootstrapped LearnHouse 106-table database",
+  "schema_sha256": "fad3fba28d7f7933fc05b87b57cb5a4f9f0dba4bf37f530bbc600531ce3b4616",
+  "not_validated": [
+    "Historical/populated LearnHouse migration upgrades",
+    "Concurrent multi-connection races",
+    "HTTP authentication and action-grant enforcement",
+    "Worker lease fencing and outbox retries",
+    "Frontend workflows",
+    "Research efficacy"
+  ],
+  "real_upstream_schema_result": {
+    "status": "PASS",
+    "source": {
+      "database": "learnhouse_v2_foundation",
+      "public_tables": 106,
+      "alembic_heads": [
+        "d8i2c3o4p5y6"
+      ],
+      "vector_version": "0.8.1"
+    },
+    "target": {
+      "database": "ea_full_upstream_validation",
+      "public_tables": 106,
+      "ea_tables": 26,
+      "ea_columns": 350,
+      "vector_version": "0.8.1",
+      "organization_rows": 0,
+      "user_rows": 0,
+      "assignment_rows": 0,
+      "submission_rows": 0
+    },
+    "export_options": [
+      "--schema-only",
+      "--no-owner",
+      "--no-privileges"
+    ],
+    "copied_business_data": false,
+    "source_mutated": false,
+    "restore_log": "validation-real-upstream-restore.log",
+    "ddl_log": "validation-real-upstream-ddl.log",
+    "schema_dump": "validation-upstream-real.sql",
+    "schema_dump_sha256": "39b85458047411a824a7d4215c22c675f835d328a7f555e9f098e2ef2f014b36",
+    "extension_schema_sha256": "fad3fba28d7f7933fc05b87b57cb5a4f9f0dba4bf37f530bbc600531ce3b4616",
+    "boundary": "Actual bootstrapped LearnHouse structure compatibility only; no populated-db migration, HTTP authorization or concurrency claim"
+  }
+}

@@ -1,0 +1,229 @@
+{
+  "run_id": "20261120T040454Z-a296909e",
+  "timestamp": "2026-11-20T04:04:56.825542+00:00",
+  "base_url": "http://127.0.0.1:8138",
+  "provenance": "demo",
+  "authentication": "real upstream cookie login",
+  "external_model_calls": 0,
+  "student_code_executions": 0,
+  "passed": 21,
+  "failed": 0,
+  "completed": true,
+  "checks": [
+    {
+      "name": "real login admin",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "real login teacher_a",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "name": "read /admin/policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "read /admin/policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "append same-rules global version for stale-parent test",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "read /courses/1",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "new content rejects stale global parent",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "POLICY_PARENT_STALE",
+      "method": "POST",
+      "path": "/courses/1/resources"
+    },
+    {
+      "name": "read /admin/policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "administration rejects outdated global parent reference",
+      "passed": true,
+      "status": 409,
+      "expected_status": [
+        409
+      ],
+      "error_code": "POLICY_PARENT_STALE",
+      "method": "POST",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "read /admin/policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "append corrected course policy 1",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "read /admin/policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "append corrected course policy 2",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "read /admin/policies",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/policies"
+    },
+    {
+      "name": "read /courses/1",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/courses/1"
+    },
+    {
+      "name": "aligned parent policy permits normal content creation",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "POST",
+      "path": "/courses/1/resources"
+    },
+    {
+      "name": "read /admin/operations",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/admin/operations"
+    },
+    {
+      "name": "admin task list exposes execution epoch ETags",
+      "passed": true
+    },
+    {
+      "name": "read /tasks/520b11c4-dbf6-41f8-8a97-19887de7296c",
+      "passed": true,
+      "status": 200,
+      "expected_status": [
+        200
+      ],
+      "error_code": null,
+      "method": "GET",
+      "path": "/tasks/520b11c4-dbf6-41f8-8a97-19887de7296c"
+    },
+    {
+      "name": "admin task list and detail share command ETag",
+      "passed": true
+    },
+    {
+      "name": "admin task detail omits result references",
+      "passed": true
+    }
+  ],
+  "created_objects": {
+    "current_global_policy_id": "4760f4b1-ba0d-4fd7-b360-226807137899",
+    "current_course_policy_1": "e0bb9b9f-c6e6-49e7-a005-e2a8340cea51",
+    "current_course_policy_2": "598d7b86-e404-4adf-a78e-0a2907710930"
+  }
+}

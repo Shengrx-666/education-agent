@@ -1,0 +1,84 @@
+{
+  "contract_version": "education-research-adapter-v1",
+  "proposed": true,
+  "source_kind": "synthetic_example",
+  "contains_credentials": false,
+  "capabilities_without_credentials": {
+    "research_generation": "unconfigured",
+    "research_profile_update": "unconfigured",
+    "research_recommendation_b": "unconfigured",
+    "rule_template_generation": "does_not_require_model",
+    "teacher_grading": "does_not_require_model"
+  },
+  "generation_preview_request": {
+    "operation": "research.generate",
+    "job_id": "example-job-001",
+    "course_id": "example-java-course",
+    "subject_id": "example-student",
+    "actor_id": "example-authorized-teacher",
+    "idempotency_key": "example-course:example-generation:v1",
+    "expected_version": 1,
+    "run_mode": "preview",
+    "adapter_input": {
+      "catalog_version": "java-basics-pilot-v3",
+      "allowed_concept_ids": ["java.condition"],
+      "target_concept_ids": ["java.condition"],
+      "target_source": "explicit_selection",
+      "requirements": ["Java 入门条件判断诊断题"],
+      "profile_version_ref": null,
+      "usage_history_snapshot_ref": null
+    },
+    "budget": {"max_calls": 8, "max_output_tokens": 6000},
+    "execution_policy": "never_execute_student_code"
+  },
+  "missing_configuration_response": {
+    "operation": "research.generate",
+    "status": "unavailable",
+    "error_code": "MODEL_NOT_CONFIGURED",
+    "model_calls": 0,
+    "candidate": null,
+    "ready_for_student": false,
+    "display_message": "研究模型未接通；可使用规则模板或教师编辑。"
+  },
+  "effective_result_event": {
+    "event_id": "example-effective-result-001",
+    "event_type": "assessment.result_effective",
+    "course_id": "example-java-course",
+    "subject_id": "example-student",
+    "submission_id": "example-submission-001",
+    "resource_version_id": "example-question-v1",
+    "rubric_version_id": "example-rubric-v1",
+    "result_version_id": "example-result-v1",
+    "supersedes_result_version_id": null,
+    "assessment_source": "deterministic_rule",
+    "effective_status": "effective",
+    "concept_ids": ["java.condition"],
+    "outcome": "incorrect",
+    "research_evidence_eligible": false,
+    "ineligibility_reason": "synthetic_example_and_not_a_java_program_submission"
+  },
+  "deterministic_projection_example": {
+    "schema": "learning-evidence-projection-v1",
+    "source_kind": "synthetic_example",
+    "projection_kind": "deterministic_rule",
+    "course_id": "example-java-course",
+    "subject_id": "example-student",
+    "based_on_event_ids": ["example-effective-result-001"],
+    "concept_id": "java.condition",
+    "effective_result_counts": {"correct": 0, "incorrect": 1},
+    "mastery_state": "Unknown",
+    "research_profile_status": "not_run",
+    "model_id": null
+  },
+  "rule_recommendation_example": {
+    "strategy": "course_rule",
+    "decision_kind": "rule_result",
+    "source_kind": "synthetic_example",
+    "basis_event_ids": ["example-effective-result-001"],
+    "reason": "本题判断未通过；按课程既定规则建议复习布尔表达式材料。",
+    "resource_version_id": "example-published-material-v1",
+    "requires_current_access_and_publication_check": true,
+    "research_b_status": "not_run",
+    "model_id": null
+  }
+}

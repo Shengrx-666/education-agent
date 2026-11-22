@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "role": "teacher",
+      "rootToLogin": true,
+      "httpStatus": 200,
+      "destination": "http://localhost:3300/education/teacher",
+      "pageErrors": []
+    },
+    {
+      "role": "student",
+      "rootToLogin": true,
+      "httpStatus": 200,
+      "destination": "http://localhost:3300/education/student",
+      "pageErrors": []
+    },
+    {
+      "role": "admin",
+      "rootToLogin": true,
+      "httpStatus": 200,
+      "destination": "http://localhost:3300/education/admin",
+      "pageErrors": []
+    }
+  ],
+  "businessWrites": false,
+  "scope": "Browser login and home pages only; no full business regression"
+}
